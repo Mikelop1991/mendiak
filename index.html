@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mendiak Carlos</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="#17302a">
+<meta name="theme-color" content="#1d5aa6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mendiak Carlos">
@@ -14,47 +14,54 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@600;700&family=Archivo:wdth,wght@62..125,600;62..125,800;62..125,900&display=swap">
 <style>
-/* Layout: libreta de cumbres. Móvil: una columna + pestañas abajo. Tablet: columna ancha. Escritorio (≥1000px): barra lateral + lista + panel de detalle fijo. */
+/* Layout: Móvil una columna + pestañas abajo; tablet columna ancha; escritorio (≥1180px) barra lateral + lista + panel fijo.
+   Identidad: bandera del Arsenal Mendi Taldea (azul y plata, títulos romanos) + alta montaña (blanco, cielo, cifras grandes). */
 :root {
-  --bg: #f2f1ea;          /* papel de mapa */
+  --bg: #f1f5fa;          /* cielo claro */
   --surface: #ffffff;
-  --surface-2: #e8eae1;
-  --ink: #1b2824;
-  --muted: #5a6862;
-  --line: #d9dcd1;
-  --fir: #17302a;         /* abeto profundo: cabecera */
-  --fir-2: #24493f;
-  --fir-ink: #f2f1ea;
-  --ochre: #ad5713;       /* baliza */
+  --surface-2: #e7eef7;
+  --ink: #13203a;
+  --muted: #56647d;
+  --line: #c9d5e5;        /* bordes marcados */
+  --fir: #1d5aa6;         /* azul bandera: cabeceras */
+  --fir-deep: #143f78;
+  --fir-2: #1d5aa6;       /* botones y selección */
+  --fir-ink: #ffffff;
+  --silver: #c7d1de;
+  --ochre: #1a63d6;       /* acento: azul cielo */
   --ochre-ink: #ffffff;
-  --ochre-soft: #f6e2cb;
-  --ok: #2c7a4b;
-  --warn-soft: #fff0cc;
+  --ochre-soft: #dbe8fb;
+  --ok: #1f7a4d;
+  --warn-soft: #fff1cf;
   --danger: #b0372a;
-  /* tramos de altitud (como el Excel) */
-  --t1: #5f8a5a; --t2: #4f8a6f; --t3: #2f6f86; --t4: #c4661a; --t5: #9a2f22;
-  --contour: rgba(242,241,234,.09);
-  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --shadow: 0 1px 2px rgba(19,32,58,.06), 0 4px 14px rgba(19,32,58,.07);
+  /* tramos de altitud: de azul claro a azul noche, rojo por encima de 3.000 */
+  --t1: #8fb5de; --t2: #4f88cf; --t3: #2a62ad; --t4: #173f7a; --t5: #b5392b;
+  --contour: rgba(255,255,255,.10);
+  --font-title: "Cinzel", "Trajan Pro", Georgia, serif;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --radius: 16px;
+  --radius: 14px;
   --tab-h: 74px;
   --side-w: 248px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #101815; --surface: #18221e; --surface-2: #22302a; --ink: #eceee6; --muted: #a2afa8; --line: #2c3a34;
-    --fir: #1a352e; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
-    --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a;
-    --t1: #a7c4a1; --t2: #6fae90; --t3: #63a6c0; --t4: #ec9a48; --t5: #e0715f; --contour: rgba(236,238,230,.06); color-scheme: dark;
+    --bg: #0c1424; --surface: #132036; --surface-2: #1b2b46; --ink: #e9eff8; --muted: #a0b0c8; --line: #2c3f5f;
+    --fir: #163f78; --fir-deep: #0d2a52; --fir-2: #2d6fc4; --fir-ink: #ffffff; --silver: #9fb0c8;
+    --ochre: #6aa6f5; --ochre-ink: #0c1424; --ochre-soft: #1d3459;
+    --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    --t1: #a9c8ec; --t2: #6fa3e6; --t3: #4f86d6; --t4: #8fb0e0; --t5: #ec7a68; --contour: rgba(255,255,255,.07); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #101815; --surface: #18221e; --surface-2: #22302a; --ink: #eceee6; --muted: #a2afa8; --line: #2c3a34;
-  --fir: #1a352e; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
-  --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a;
-  --t1: #a7c4a1; --t2: #6fae90; --t3: #63a6c0; --t4: #ec9a48; --t5: #e0715f; --contour: rgba(236,238,230,.06); color-scheme: dark;
+  --bg: #0c1424; --surface: #132036; --surface-2: #1b2b46; --ink: #e9eff8; --muted: #a0b0c8; --line: #2c3f5f;
+  --fir: #163f78; --fir-deep: #0d2a52; --fir-2: #2d6fc4; --fir-ink: #ffffff; --silver: #9fb0c8;
+  --ochre: #6aa6f5; --ochre-ink: #0c1424; --ochre-soft: #1d3459;
+  --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  --t1: #a9c8ec; --t2: #6fa3e6; --t3: #4f86d6; --t4: #8fb0e0; --t5: #ec7a68; --contour: rgba(255,255,255,.07); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -72,8 +79,10 @@ input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; app
 .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .topo {
   background-color: var(--fir);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='180' viewBox='0 0 360 180'%3E%3Cg fill='none' stroke='%23f2f1ea' stroke-opacity='.10' stroke-width='1.2'%3E%3Cpath d='M-20 150c40-30 70-60 120-62s70 30 110 24 60-60 90-70 50 0 80 10'/%3E%3Cpath d='M-20 128c40-26 72-50 118-52s76 26 112 20 56-52 88-60 54 2 82 12'/%3E%3Cpath d='M-20 106c42-22 74-40 116-42s80 22 114 16 52-44 86-50 56 4 84 14'/%3E%3Cpath d='M-20 84c44-18 76-30 114-32s84 18 116 12 48-36 84-40 58 6 86 16'/%3E%3Cpath d='M-20 62c46-14 78-20 112-22s88 14 118 8 44-28 82-30 60 8 88 18'/%3E%3Cpath d='M-20 40c48-10 80-10 110-12s92 10 120 4 40-20 80-20 62 10 90 20'/%3E%3Cpath d='M-20 18c50-6 82 0 108-2s96 6 122 0 36-12 78-10 64 12 92 22'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 360px 180px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cpath d='M0 80V58l44-30 20 16 34-36 42 52 30-20 26 14 52-40 38 30 30-16 40 34 44-28v46Z' fill='%23ffffff' fill-opacity='.10'/%3E%3Cpath d='M0 58l44-30 20 16 34-36 42 52 30-20 26 14 52-40 38 30 30-16 40 34 44-28' fill='none' stroke='%23ffffff' stroke-opacity='.28' stroke-width='1.5'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, var(--fir) 0%, var(--fir-deep) 100%);
+  background-repeat: no-repeat; background-position: bottom center, 0 0; background-size: 100% 64px, 100% 100%;
   color: var(--fir-ink);
 }
 
@@ -232,13 +241,13 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .years button span { position: absolute; bottom: calc(var(--h, 0px) + 3px); left: -6px; right: -6px; font-size: 12px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
 .years-l { display: flex; gap: 4px; min-width: max-content; }
 .years-l span { width: 30px; font-size: 12px; color: var(--muted); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); height: 34px; }
-.cal-wrap { display: grid; grid-template-columns: auto auto; gap: 0 6px; min-width: max-content; }
+.cal-wrap { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 0 6px; min-width: max-content; }
 .cal-d { display: grid; grid-template-rows: repeat(7, 13px); gap: 3px; font-size: 10px; line-height: 13px; color: var(--muted); font-weight: 700; text-align: right; }
 .cal-sp { height: 16px; }
 .cal { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; min-width: max-content; }
 .cal i { border-radius: 3px; background: var(--surface-2); }
 .cal i.x { background: var(--t2); }
-.cal i.x2 { background: var(--ochre); }
+.cal i.x2 { background: var(--fir-deep); }
 .cal i.o { background: transparent; }
 .cal-m { display: grid; grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; font-size: 11px; color: var(--muted); min-width: max-content; height: 16px; }
 .cal-m span { white-space: nowrap; }
@@ -375,6 +384,49 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
   .mlist { grid-template-columns: 1fr 1fr; column-gap: 28px; }
 }
+
+/* ===== identidad A+C: títulos romanos, cifras condensadas, recuadros marcados ===== */
+h2, .hero .hola, .dhead h2, .brand .name b, .summary .big { font-family: var(--font-title); letter-spacing: .03em; text-transform: none; }
+h2 { font-weight: 700; }
+.brand .name b { text-transform: uppercase; letter-spacing: .12em; font-size: 24px; }
+.brand .name span { font-family: var(--font-body); color: var(--silver); font-weight: 700; font-size: 12px; letter-spacing: .26em; }
+h3, .eyebrow, .kpi .k, .season span, .summary .k { font-family: var(--font-title); font-weight: 700; letter-spacing: .12em; }
+h3 { font-size: 15px; color: var(--muted); }
+.season b, .kpi .v, .date .d, .alt, .mrow .c, .summary .big, .year, .dhead .alts span, .bar span, .years button span {
+  font-family: var(--font-display); font-stretch: 75%; font-weight: 900; }
+.summary .big { font-family: var(--font-title); font-weight: 700; font-size: 38px; }
+.summary .big small { font-family: var(--font-body); }
+.year { color: var(--fir-2); letter-spacing: .02em; font-size: 26px; }
+.kpi .v { font-size: 46px; letter-spacing: -.01em; }
+.kpi:first-child .v, .kpi:nth-child(4) .v { color: var(--ochre); }
+.season b { font-size: clamp(26px, 7vw, 34px); }
+.season div { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.26); backdrop-filter: blur(2px); }
+.hero.topo { background-size: 100% 44px, 100% 100%; }
+.hero .club { color: var(--silver); }
+.card, .panel, .kpi, .form-card, .xl-btns .btn { border-width: 1.5px; }
+.card, .panel, .kpi, .form-card { box-shadow: var(--shadow); border-color: var(--line); }
+.card:hover { border-color: var(--fir-2); }
+.card .t { font-size: 18px; }
+.date { border-right: 1.5px solid var(--line); padding-right: 10px; }
+.date .d { font-size: 36px; }
+.alt { color: var(--ink); font-size: 22px; }
+.alt svg { color: var(--tc, var(--muted)); width: 20px; height: 14px; }
+.mrow { border-bottom-width: 1.5px; }
+.mrow .c { color: var(--fir-2); }
+.chip { border-width: 1.5px; border-color: var(--line); }
+.chip.on { background: var(--fir-2); border-color: var(--fir-2); }
+.chip.ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
+.field input, .field select, .field textarea { border-width: 1.5px; border-color: var(--line); }
+.dhead .alts span { font-size: 22px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); }
+.pill { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); }
+nav.tabs button.add .plus { box-shadow: 0 6px 16px rgba(26,99,214,.35); }
+.bar.cur, .years button.on i { background: var(--fir-deep); }
+.bar, .years button i { background: var(--t2); }
+.goal-bar i { background: #9cc6f2; }
+.recuerdo .hist button span:first-child { color: var(--fir-2); }
+.tag.hi { background: var(--ochre-soft); color: var(--ink); }
+:root[data-theme="dark"] .bar.cur, :root[data-theme="dark"] .years button.on i { background: #9cc6f2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar.cur, :root:not([data-theme="light"]) .years button.on i { background: #9cc6f2; } }
 @media (prefers-reduced-motion: no-preference) {
   .sheet { animation: up .24s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { translate: 0 60px; opacity: .5; } }
   .view { animation: fade .18s ease-out; } @keyframes fade { from { opacity: .4; translate: 0 6px; } }
@@ -1019,7 +1071,7 @@ function calendario(y, sel) {
   }
   for (let c = 0, m = 0; c <= col; c++) { if (mesCol[m] === c) { meses += `<span>${MESES[m]}</span>`; m++; } else meses += '<span></span>'; }
   return `<div class="scroll-x"><div class="cal-wrap"><span class="cal-sp"></span><div class="cal-m">${meses}</div><div class="cal-d" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="cal" aria-label="Días de monte en ${y}">${cells}</div></div></div>
-    <div class="legend"><span><i style="background:var(--surface-2)"></i>sin salida</span><span><i style="background:var(--t2)"></i>día de monte</span><span><i style="background:var(--ochre)"></i>2 salidas el mismo día</span></div>`;
+    <div class="legend"><span><i style="background:var(--surface-2)"></i>sin salida</span><span><i style="background:var(--t2)"></i>día de monte</span><span><i style="background:var(--fir-deep)"></i>2 salidas el mismo día</span></div>`;
 }
 function vResumen() {
   const anios = [...new Set(S.salidas.map(s => (s.fecha || '').slice(0, 4)).filter(Boolean))].sort();
