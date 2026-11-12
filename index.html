@@ -81,7 +81,7 @@ input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; app
 header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
 header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand .mark { width: 40px; height: 40px; flex: none; }
+.brand .mark { width: 40px; height: 40px; flex: none; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 .brand .name { display: grid; line-height: 1; }
 .brand .name b { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: .08em; text-transform: uppercase; }
 .brand .name span { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: .22em; text-transform: uppercase; color: var(--ochre); margin-top: 3px; }
@@ -381,7 +381,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <header class="top topo">
   <div class="wrap">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#1f6fc5"/><g transform="translate(10 7) scale(.8)" fill="none"><defs> <clipPath id="emb-cl"><circle cx="34.5" cy="44" r="15"/></clipPath> <clipPath id="emb-cr"><circle cx="65.5" cy="44" r="15"/></clipPath> </defs> <g stroke="#eef3fa" stroke-width="2.6" stroke-linejoin="round"> <path d="M50 3 57 13 50 23 43 13Z" fill="#eef3fa"/> <path d="M50 3V23" stroke="#1f6fc5" stroke-width="1.6"/> <path d="M10 23H90C90 50 74 74 50 97 26 74 10 50 10 23Z" fill="#1f6fc5"/> <path d="M20.5 27.5a3.2 3.2 0 1 0 0 5.6" stroke-width="1.8"/> <path d="M78.2 27v6.4h1.4a3.2 3.2 0 0 0 0-6.4Z" stroke-width="1.8"/> <circle cx="34.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cl)" stroke="none" fill="#1f6fc5"> <rect x="22.2" y="28" width="4.4" height="32"/><rect x="31" y="28" width="4.4" height="32"/><rect x="39.8" y="28" width="4.4" height="32"/> </g> <circle cx="34.5" cy="44" r="15"/> <circle cx="65.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cr)" stroke="#1f6fc5" stroke-width="2"> <path d="M54.5 34c5 3 8 8 8.5 14M62.5 48c-3 4-8 7-13 7.5M62.5 48c4-1.5 9-1 14 2.5M58 30.5c4 1 9 4 12 9M66 58.5c1-3.5 1-7-1-10.5"/> </g> <circle cx="65.5" cy="44" r="15"/> <circle cx="50" cy="69" r="13.5" fill="#1f6fc5"/> <path d="M43.5 77 50 60.5 56.5 77M45.6 71.6h8.8" stroke-width="3.2" stroke-linecap="round"/> </g></g></svg>
+      <img class="mark" src="icon-192.png" alt="" width="40" height="40">
       <div class="name"><b>Mendiak</b><span id="owner1">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
@@ -394,7 +394,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <nav class="tabs" aria-label="Secciones">
   <div class="side-brand topo">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#1f6fc5"/><g transform="translate(10 7) scale(.8)" fill="none"><defs> <clipPath id="emb-cl"><circle cx="34.5" cy="44" r="15"/></clipPath> <clipPath id="emb-cr"><circle cx="65.5" cy="44" r="15"/></clipPath> </defs> <g stroke="#eef3fa" stroke-width="2.6" stroke-linejoin="round"> <path d="M50 3 57 13 50 23 43 13Z" fill="#eef3fa"/> <path d="M50 3V23" stroke="#1f6fc5" stroke-width="1.6"/> <path d="M10 23H90C90 50 74 74 50 97 26 74 10 50 10 23Z" fill="#1f6fc5"/> <path d="M20.5 27.5a3.2 3.2 0 1 0 0 5.6" stroke-width="1.8"/> <path d="M78.2 27v6.4h1.4a3.2 3.2 0 0 0 0-6.4Z" stroke-width="1.8"/> <circle cx="34.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cl)" stroke="none" fill="#1f6fc5"> <rect x="22.2" y="28" width="4.4" height="32"/><rect x="31" y="28" width="4.4" height="32"/><rect x="39.8" y="28" width="4.4" height="32"/> </g> <circle cx="34.5" cy="44" r="15"/> <circle cx="65.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cr)" stroke="#1f6fc5" stroke-width="2"> <path d="M54.5 34c5 3 8 8 8.5 14M62.5 48c-3 4-8 7-13 7.5M62.5 48c4-1.5 9-1 14 2.5M58 30.5c4 1 9 4 12 9M66 58.5c1-3.5 1-7-1-10.5"/> </g> <circle cx="65.5" cy="44" r="15"/> <circle cx="50" cy="69" r="13.5" fill="#1f6fc5"/> <path d="M43.5 77 50 60.5 56.5 77M45.6 71.6h8.8" stroke-width="3.2" stroke-linecap="round"/> </g></g></svg>
+      <img class="mark" src="icon-192.png" alt="" width="40" height="40">
       <div class="name"><b>Mendiak</b><span id="owner2">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill2" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
