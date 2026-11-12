@@ -27,14 +27,14 @@
   --fir: #17302a;         /* abeto profundo: cabecera */
   --fir-2: #24493f;
   --fir-ink: #f2f1ea;
-  --ochre: #c4661a;       /* baliza */
+  --ochre: #ad5713;       /* baliza */
   --ochre-ink: #ffffff;
   --ochre-soft: #f6e2cb;
   --ok: #2c7a4b;
   --warn-soft: #fff0cc;
   --danger: #b0372a;
   /* tramos de altitud (como el Excel) */
-  --t1: #8fae8a; --t2: #4f8a6f; --t3: #2f6f86; --t4: #c4661a; --t5: #9a2f22;
+  --t1: #5f8a5a; --t2: #4f8a6f; --t3: #2f6f86; --t4: #c4661a; --t5: #9a2f22;
   --contour: rgba(242,241,234,.09);
   --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -45,14 +45,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101815; --surface: #18221e; --surface-2: #22302a; --ink: #eceee6; --muted: #a2afa8; --line: #2c3a34;
-    --fir: #0c1714; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
+    --fir: #1a352e; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
     --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a;
     --t1: #a7c4a1; --t2: #6fae90; --t3: #63a6c0; --t4: #ec9a48; --t5: #e0715f; --contour: rgba(236,238,230,.06); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101815; --surface: #18221e; --surface-2: #22302a; --ink: #eceee6; --muted: #a2afa8; --line: #2c3a34;
-  --fir: #0c1714; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
+  --fir: #1a352e; --fir-2: #2e6556; --fir-ink: #eceee6; --ochre: #ec9a48; --ochre-ink: #1a1208; --ochre-soft: #3b2a16;
   --ok: #6cc08e; --warn-soft: #3a3018; --danger: #f08a7a;
   --t1: #a7c4a1; --t2: #6fae90; --t3: #63a6c0; --t4: #ec9a48; --t5: #e0715f; --contour: rgba(236,238,230,.06); color-scheme: dark;
 }
@@ -86,7 +86,7 @@ header.top .wrap { display: flex; align-items: center; justify-content: space-be
 .brand .name b { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: .08em; text-transform: uppercase; }
 .brand .name span { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: .22em; text-transform: uppercase; color: var(--ochre); margin-top: 3px; }
 :root[data-theme="dark"] .brand .name span { color: var(--ochre); }
-.pill { font-size: 14px; padding: 8px 12px; border-radius: 99px; background: rgba(242,241,234,.12); color: var(--fir-ink); border: 1px solid rgba(242,241,234,.18); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; min-height: 40px; }
+.pill { font-size: 14px; padding: 8px 12px; border-radius: 99px; background: rgba(242,241,234,.12); color: var(--fir-ink); border: 1px solid rgba(242,241,234,.18); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; min-height: 44px; }
 .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: #8fd6a8; box-shadow: 0 0 0 3px rgba(143,214,168,.18); }
 .pill.pend .dot { background: #f6c177; box-shadow: 0 0 0 3px rgba(246,193,119,.2); }
 .pill.off .dot { background: #e98a7a; box-shadow: 0 0 0 3px rgba(233,138,122,.2); }
@@ -103,7 +103,7 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 30px; text-t
 h3 { font-family: var(--font-display); font-weight: 700; font-size: 19px; text-transform: uppercase; letter-spacing: .08em; margin: 0; color: var(--muted); }
 .muted { color: var(--muted); }
 .small { font-size: 15px; }
-.eyebrow { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+.eyebrow { padding-top: 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
 
 /* ---------- portada (buscar) ---------- */
 .hero { border-radius: 20px; padding: 18px 18px 16px; display: grid; gap: 14px; position: relative; overflow: hidden; }
@@ -111,7 +111,7 @@ h3 { font-family: var(--font-display); font-weight: 700; font-size: 19px; text-t
 .hero .hola small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 16px; letter-spacing: 0; opacity: .8; margin-top: 6px; }
 .season { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .season div { background: rgba(242,241,234,.08); border: 1px solid rgba(242,241,234,.12); border-radius: 12px; padding: 10px 8px; text-align: center; min-width: 0; }
-.season b { display: block; font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.season b { display: block; font-family: var(--font-display); font-size: clamp(22px, 6.2vw, 28px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 .season span { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .75; }
 .search { position: relative; }
 .search input {
@@ -224,12 +224,12 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .bar span { position: absolute; top: -20px; left: -6px; right: -6px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); }
 .bars-l { display: grid; grid-template-columns: repeat(12, minmax(18px, 1fr)); gap: 6px; font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px; }
 .years { display: flex; gap: 4px; align-items: flex-end; height: 140px; padding-top: 20px; min-width: max-content; }
-.years button { width: 22px; border: 0; padding: 0; background: none; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
+.years button { width: 30px; border: 0; padding: 0; background: none; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
 .years button i { display: block; background: var(--t2); border-radius: 4px 4px 0 0; min-height: 2px; }
 .years button.on i { background: var(--ochre); }
-.years button span { position: absolute; top: -18px; left: -6px; right: -6px; font-size: 11px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.years button span { position: absolute; top: -19px; left: -6px; right: -6px; font-size: 12px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
 .years-l { display: flex; gap: 4px; min-width: max-content; }
-.years-l span { width: 22px; font-size: 10px; color: var(--muted); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); height: 34px; }
+.years-l span { width: 30px; font-size: 12px; color: var(--muted); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); height: 34px; }
 .cal { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; min-width: max-content; }
 .cal i { border-radius: 3px; background: var(--surface-2); }
 .cal i.x { background: var(--t2); }
@@ -257,7 +257,9 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--bg); border-radius: 22px 22px 0 0; max-height: 90vh; overflow: auto; box-shadow: 0 -10px 30px rgba(0,0,0,.2);
   padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .sheet .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
-.detail { max-width: 680px; margin: 0 auto; display: grid; gap: 16px; }
+.detail { max-width: 680px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.detail > * { min-width: 0; }
+.dhead h2, .dhead .when { overflow-wrap: anywhere; }
 .dhead { border-radius: 18px; padding: 18px; display: grid; gap: 8px; }
 .dhead h2 { font-size: 30px; }
 .dhead .when { font-size: 16px; opacity: .85; }
@@ -280,8 +282,10 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--surface); border-top: 1px solid var(--line);
   padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px)); box-shadow: 0 -4px 16px rgba(0,0,0,.05); }
 nav.tabs .side-brand, nav.tabs .side-foot { display: none; }
+nav.tabs .sm { display: none; }
+@media (max-width: 430px) { nav.tabs .lg { display: none; } nav.tabs .sm { display: inline; } }
 nav.tabs .in { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tab-h); }
-nav.tabs button { border: 0; background: none; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 14px; color: var(--muted); position: relative; }
+nav.tabs button { border: 0; background: none; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 14px; white-space: nowrap; color: var(--muted); position: relative; }
 nav.tabs button svg { width: 26px; height: 26px; }
 nav.tabs button.on { color: var(--ink); font-weight: 700; }
 nav.tabs button.on::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--ochre); }
@@ -291,7 +295,7 @@ nav.tabs button.add .plus { width: 52px; height: 52px; border-radius: 16px; back
 nav.tabs button.add.on .plus { rotate: 45deg; }
 nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 
-.toast { position: fixed; left: 50%; translate: -50% 0; bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px) + 18px); z-index: 50; background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 6px 20px rgba(0,0,0,.25); max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; translate: -50% 0; bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px) + 18px); z-index: 50; background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 6px 20px rgba(0,0,0,.25); width: max-content; max-width: calc(100vw - 32px); text-align: center; }
 
 /* ---------- móviles pequeños ---------- */
 @media (max-width: 380px) {
@@ -315,7 +319,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
   .fgrid.cols { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 /* ---------- escritorio ---------- */
-@media (min-width: 1000px) {
+@media (min-width: 1180px) {
   body { padding-bottom: 32px; padding-left: var(--side-w); }
   body::before { display: none; }
   header.top { display: none; }
@@ -354,7 +358,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <header class="top topo">
   <div class="wrap">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#c4661a"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#ad5713"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
       <div class="name"><b>Mendiak</b><span id="owner1">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
@@ -367,14 +371,14 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <nav class="tabs" aria-label="Secciones">
   <div class="side-brand topo">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#c4661a"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#ad5713"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
       <div class="name"><b>Mendiak</b><span id="owner2">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill2" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
   </div>
   <div class="in">
     <button type="button" data-tab="buscar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Buscar</button>
-    <button type="button" data-tab="nueva" class="add"><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Nueva salida</button>
+    <button type="button" data-tab="nueva" class="add"><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="lg">Nueva salida</span><span class="sm">Nueva</span></button>
     <button type="button" data-tab="montes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M2 20 9 7l4 7 3-4 6 10Z"/></svg>Montes</button>
     <button type="button" data-tab="resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/></svg>Resumen</button>
   </div>
@@ -547,7 +551,7 @@ function encolar(op) {
 /* ====================== utilidades de interfaz ====================== */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const escritorio = () => window.matchMedia('(min-width: 1000px)').matches;
+const escritorio = () => window.matchMedia('(min-width: 1180px)').matches;
 const MONTE_SVG = '<svg viewBox="0 0 18 13" aria-hidden="true"><path d="M0 13 6 2l3 5 2-3 7 9Z" fill="currentColor"/></svg>';
 const VACIO_SVG = '<svg viewBox="0 0 90 60" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M4 56 32 10l14 22 10-14 30 38Z"/><path d="m32 10 8 13-8-3-6 5"/></svg>';
 function tramo(m) { if (!m) return null; return m < 1000 ? 1 : m < 1500 ? 2 : m < 2000 ? 3 : m < 3000 ? 4 : 5; }
@@ -1049,7 +1053,7 @@ $$('#syncPill, #syncPill2').forEach(p => p.onclick = () => S.demo ? toast('Versi
 window.addEventListener('online', () => sincronizar());
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
 let anchoPrev = escritorio();
-window.addEventListener('resize', () => { const e = escritorio(); if (e !== anchoPrev) { anchoPrev = e; cerrarHoja(); render(); } });
+window.addEventListener('resize', () => { const e = escritorio(); if (e !== anchoPrev) { anchoPrev = e; const id = selId; cerrarHoja(); render(); if (id && S.tab === 'buscar') detalle(id); } });
 
 function arrancar() {
   if (window.MENDIAK_DEMO) {
