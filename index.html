@@ -427,6 +427,28 @@ nav.tabs button.add .plus { box-shadow: 0 6px 16px rgba(26,99,214,.35); }
 .tag.hi { background: var(--ochre-soft); color: var(--ink); }
 :root[data-theme="dark"] .bar.cur, :root[data-theme="dark"] .years button.on i { background: #9cc6f2; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar.cur, :root:not([data-theme="light"]) .years button.on i { background: #9cc6f2; } }
+
+/* ===== ajustes tras prueba en iPhone ===== */
+body::before { display: none; }
+header.top { top: 0; padding-top: env(safe-area-inset-top, 0px); }
+header.top.topo, nav.tabs .side-brand.topo { background-image: linear-gradient(180deg, var(--fir) 0%, var(--fir-deep) 100%); background-size: 100% 100%; }
+.brand .name b { font-size: 22px; }
+.hero.topo { padding-bottom: 42px; background-size: 100% 36px, 100% 100%; }
+.hero .hola { font-size: clamp(25px, 7vw, 40px); line-height: 1.08; }
+.hero .hola small { font-size: 15px; margin-top: 8px; }
+h2 { font-size: clamp(22px, 6vw, 32px); }
+.dhead h2 { font-size: clamp(21px, 6vw, 30px); line-height: 1.12; }
+.summary .big { font-size: clamp(28px, 8vw, 38px); }
+.season span, .kpi .k, .summary .k, .eyebrow { font-family: var(--font-body); font-weight: 700; letter-spacing: .06em; }
+.season span { font-size: 11px; line-height: 1.2; display: block; margin-top: 3px; }
+.season div { padding: 10px 4px 8px; }
+.season b { font-size: clamp(22px, 6.3vw, 30px); }
+h3 { font-size: 14px; letter-spacing: .1em; }
+.year { font-size: 24px; }
+.hero .chip.ghost { min-height: 40px; padding: 6px 13px; font-size: 15px; }
+@media (max-width: 430px) { #recientes .chip:nth-child(n+5) { display: none; } .hero { gap: 12px; } }
+@media (max-width: 600px) { .panel-head > .field { flex: 1 1 100%; min-width: 0 !important; } }
+@media (min-width: 1180px) { .hero .hola { font-size: 38px; } }
 @media (prefers-reduced-motion: no-preference) {
   .sheet { animation: up .24s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { translate: 0 60px; opacity: .5; } }
   .view { animation: fade .18s ease-out; } @keyframes fade { from { opacity: .4; translate: 0 6px; } }
