@@ -107,6 +107,7 @@ h3 { font-family: var(--font-display); font-weight: 700; font-size: 19px; text-t
 
 /* ---------- portada (buscar) ---------- */
 .hero { border-radius: 20px; padding: 18px 18px 16px; display: grid; gap: 14px; position: relative; overflow: hidden; }
+.hero .club { font-size: 13px; text-transform: uppercase; letter-spacing: .16em; font-weight: 700; color: #9cc6f2; margin-bottom: -6px; }
 .hero .hola { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1; letter-spacing: .02em; }
 .hero .hola small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 16px; letter-spacing: 0; opacity: .8; margin-top: 6px; }
 .season { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -326,7 +327,8 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
   .brand .name b { font-size: 24px; } .brand .mark { width: 34px; height: 34px; }
   .card { grid-template-columns: 48px minmax(0, 1fr) auto; padding: 12px; gap: 3px 10px; }
   .date .d { font-size: 28px; }
-  .hero .hola { font-size: 28px; }
+  .hero .club { font-size: 13px; text-transform: uppercase; letter-spacing: .16em; font-weight: 700; color: #9cc6f2; margin-bottom: -6px; }
+.hero .hola { font-size: 28px; }
   .pill { padding: 6px 10px; }
 }
 /* ---------- tablet ---------- */
@@ -335,7 +337,8 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
   .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
   .hero { padding: 24px; }
-  .hero .hola { font-size: 42px; }
+  .hero .club { font-size: 13px; text-transform: uppercase; letter-spacing: .16em; font-weight: 700; color: #9cc6f2; margin-bottom: -6px; }
+.hero .hola { font-size: 42px; }
   .fgrid.cols { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 /* ---------- escritorio ---------- */
@@ -378,7 +381,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <header class="top topo">
   <div class="wrap">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#ad5713"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#1f6fc5"/><g transform="translate(10 7) scale(.8)" fill="none"><defs> <clipPath id="emb-cl"><circle cx="34.5" cy="44" r="15"/></clipPath> <clipPath id="emb-cr"><circle cx="65.5" cy="44" r="15"/></clipPath> </defs> <g stroke="#eef3fa" stroke-width="2.6" stroke-linejoin="round"> <path d="M50 3 57 13 50 23 43 13Z" fill="#eef3fa"/> <path d="M50 3V23" stroke="#1f6fc5" stroke-width="1.6"/> <path d="M10 23H90C90 50 74 74 50 97 26 74 10 50 10 23Z" fill="#1f6fc5"/> <path d="M20.5 27.5a3.2 3.2 0 1 0 0 5.6" stroke-width="1.8"/> <path d="M78.2 27v6.4h1.4a3.2 3.2 0 0 0 0-6.4Z" stroke-width="1.8"/> <circle cx="34.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cl)" stroke="none" fill="#1f6fc5"> <rect x="22.2" y="28" width="4.4" height="32"/><rect x="31" y="28" width="4.4" height="32"/><rect x="39.8" y="28" width="4.4" height="32"/> </g> <circle cx="34.5" cy="44" r="15"/> <circle cx="65.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cr)" stroke="#1f6fc5" stroke-width="2"> <path d="M54.5 34c5 3 8 8 8.5 14M62.5 48c-3 4-8 7-13 7.5M62.5 48c4-1.5 9-1 14 2.5M58 30.5c4 1 9 4 12 9M66 58.5c1-3.5 1-7-1-10.5"/> </g> <circle cx="65.5" cy="44" r="15"/> <circle cx="50" cy="69" r="13.5" fill="#1f6fc5"/> <path d="M43.5 77 50 60.5 56.5 77M45.6 71.6h8.8" stroke-width="3.2" stroke-linecap="round"/> </g></g></svg>
       <div class="name"><b>Mendiak</b><span id="owner1">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
@@ -391,7 +394,7 @@ nav.tabs button.add .plus svg { width: 28px; height: 28px; }
 <nav class="tabs" aria-label="Secciones">
   <div class="side-brand topo">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#ad5713"/><path d="M5 31 16 12l5.5 8.5 4-5L35 31Z" fill="#f2f1ea"/><path d="m16 12 3.2 5-3.2-1.2-2.6 2.4Z" fill="#17302a"/></svg>
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#1f6fc5"/><g transform="translate(10 7) scale(.8)" fill="none"><defs> <clipPath id="emb-cl"><circle cx="34.5" cy="44" r="15"/></clipPath> <clipPath id="emb-cr"><circle cx="65.5" cy="44" r="15"/></clipPath> </defs> <g stroke="#eef3fa" stroke-width="2.6" stroke-linejoin="round"> <path d="M50 3 57 13 50 23 43 13Z" fill="#eef3fa"/> <path d="M50 3V23" stroke="#1f6fc5" stroke-width="1.6"/> <path d="M10 23H90C90 50 74 74 50 97 26 74 10 50 10 23Z" fill="#1f6fc5"/> <path d="M20.5 27.5a3.2 3.2 0 1 0 0 5.6" stroke-width="1.8"/> <path d="M78.2 27v6.4h1.4a3.2 3.2 0 0 0 0-6.4Z" stroke-width="1.8"/> <circle cx="34.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cl)" stroke="none" fill="#1f6fc5"> <rect x="22.2" y="28" width="4.4" height="32"/><rect x="31" y="28" width="4.4" height="32"/><rect x="39.8" y="28" width="4.4" height="32"/> </g> <circle cx="34.5" cy="44" r="15"/> <circle cx="65.5" cy="44" r="15" fill="#eef3fa"/> <g clip-path="url(#emb-cr)" stroke="#1f6fc5" stroke-width="2"> <path d="M54.5 34c5 3 8 8 8.5 14M62.5 48c-3 4-8 7-13 7.5M62.5 48c4-1.5 9-1 14 2.5M58 30.5c4 1 9 4 12 9M66 58.5c1-3.5 1-7-1-10.5"/> </g> <circle cx="65.5" cy="44" r="15"/> <circle cx="50" cy="69" r="13.5" fill="#1f6fc5"/> <path d="M43.5 77 50 60.5 56.5 77M45.6 71.6h8.8" stroke-width="3.2" stroke-linecap="round"/> </g></g></svg>
       <div class="name"><b>Mendiak</b><span id="owner2">Carlos</span></div>
     </div>
     <button class="pill" id="syncPill2" type="button"><span class="dot"></span><span class="syncTxt">…</span></button>
@@ -632,7 +635,7 @@ function pintarEstado(modo) {
   else if (!S.online) { txt = 'Sin conexión'; cls = 'off'; }
   else txt = 'Al día';
   ['#syncPill', '#syncPill2'].forEach(id => { const p = $(id); if (!p) return; p.classList.remove('pend', 'off'); if (cls) p.classList.add(cls); p.querySelector('.syncTxt').textContent = txt; });
-  const f = $('#sideFoot'); if (f) f.textContent = S.ultimaSync ? 'Actualizado ' + S.ultimaSync.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+  const f = $('#sideFoot'); if (f) f.textContent = 'Arsenal Mendi Taldea' + (S.ultimaSync ? ' · actualizado ' + S.ultimaSync.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '');
 }
 
 /* ====================== vistas ====================== */
@@ -712,6 +715,7 @@ function vBuscar() {
   $('#app').innerHTML = `<div class="split">
     <div class="view">
       <section class="hero topo">
+        <div class="club">Arsenal Mendi Taldea</div>
         <div class="hola">${saludo()}, ${esc(propietario())}<small>¿Qué monte buscas? Escribe un monte, una sierra o un compañero.</small></div>
         <div class="search">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -816,7 +820,7 @@ function textoSalida(s) {
   if (num(s.km)) t += `\n🥾 ${fmtN(num(s.km))} km`;
   const r = REF.get(s.cumbre); if (r && r.veces > 1) t += `\n🔁 Es la vez nº ${S.salidas.filter(x => x.cumbre === s.cumbre && (x.fecha || '') <= (s.fecha || '')).length} en ${proper(s.cumbre)}`;
   if (/^\d{5,12}$/.test(String(s.idRuta).trim())) t += `\n🗺️ https://www.wikiloc.com/wikiloc/view.do?id=${String(s.idRuta).trim()}`;
-  return t + '\n— Mendiak ' + propietario();
+  return t + '\n— Mendiak ' + propietario() + ' · Arsenal Mendi Taldea';
 }
 async function compartir(s) {
   if (!s) return; const t = textoSalida(s);
