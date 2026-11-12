@@ -40,11 +40,15 @@ function doPost(e) {
     const p = JSON.parse(e.postData.contents);
     comprobarClave_(p.k);
     const lock = LockService.getScriptLock();
-    lock.waitLock(20000);
+    if (!lock.tryLock(20000)) throw new Error('OCUPADO');
     try {
-      const hechos = [];
-      (p.ops || [p]).forEach(op => hechos.push(aplicar_(op)));
-      PropertiesService.getScriptProperties().setProperty('CAMBIOS', '1');
+      // cada cambio por separado: si uno falla, los demás se guardan igual y la app sabe cuál no entró
+      const hechos = (p.ops || [p]).map(op => {
+        try { return Object.assign({ ok: true }, aplicar_(op)); }
+        catch (err) { return { ok: false, accion: op && op.accion, error: String(err.message || err) }; }
+      });
+      SpreadsheetApp.flush();
+      if (hechos.some(h => h.ok)) PropertiesService.getScriptProperties().setProperty('CAMBIOS', '1');
       return { ok: true, hechos: hechos };
     } finally {
       lock.releaseLock();
@@ -56,7 +60,7 @@ function aplicar_(op) {
   const hoja = SpreadsheetApp.getActive().getSheetByName(HOJA_SALIDAS);
   const ahora = new Date();
   if (op.accion === 'crear') {
-    const s = op.salida;
+    const s = limpiar_(op.salida);
     // si ya existe (reintento sin conexión), no se duplica
     if (s.id && buscarFila_(hoja, s.id) > 0) return { accion: 'crear', id: s.id, repetida: true };
     s.id = s.id || nuevoId_(hoja);
@@ -68,7 +72,7 @@ function aplicar_(op) {
     const fila = buscarFila_(hoja, op.salida.id);
     if (fila < 0) throw new Error('No encuentro la salida ' + op.salida.id);
     const actual = hoja.getRange(fila, 1, 1, CAMPOS.length).getValues()[0];
-    const s = op.salida;
+    const s = limpiar_(op.salida);
     s.creado = actual[CAMPOS.indexOf('creado')] || '';
     s.modificado = ahora;
     hoja.getRange(fila, 1, 1, CAMPOS.length).setValues([aFila_(s)]);
@@ -86,6 +90,23 @@ function aplicar_(op) {
     return { accion: 'borrar', id: op.id };
   }
   throw new Error('Acción desconocida');
+}
+
+/** Revisa lo que llega de la app antes de escribirlo en la hoja. */
+function limpiar_(s) {
+  if (!s) throw new Error('Salida vacía');
+  const fecha = /^\d{4}-\d{2}-\d{2}$/;
+  if (!fecha.test(String(s.fecha || ''))) throw new Error('Fecha no válida');
+  const monte = String(s.monte || '').trim();
+  if (!monte) throw new Error('Falta el monte');
+  const o = {};
+  CAMPOS.forEach(c => {
+    const x = s[c];
+    o[c] = (x === undefined || x === null) ? '' : (typeof x === 'string' ? x.trim().slice(0, 1000) : x);
+  });
+  o.monte = monte.slice(0, 200);
+  if (o.fechaFin && !fecha.test(String(o.fechaFin))) o.fechaFin = '';
+  return o;
 }
 
 function leerSalidas_() {
