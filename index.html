@@ -218,19 +218,23 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .kpi .d { font-size: 14px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 14px; min-width: 0; }
 .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
-.bars { display: grid; grid-template-columns: repeat(12, minmax(18px, 1fr)); gap: 6px; align-items: end; height: 160px; padding-top: 20px; }
-.bar { position: relative; background: var(--t2); border-radius: 5px 5px 0 0; min-height: 2px; }
+.scroll-x { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.bars { display: grid; grid-template-columns: repeat(12, minmax(18px, 1fr)); gap: 6px; height: 160px; padding-top: 20px; }
+.bars > div { position: relative; height: 140px; }
+.bar { position: absolute; left: 0; right: 0; bottom: 0; background: var(--t2); border-radius: 5px 5px 0 0; min-height: 2px; }
 .bar.cur { background: var(--ochre); }
 .bar span { position: absolute; top: -20px; left: -6px; right: -6px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); }
 .bars-l { display: grid; grid-template-columns: repeat(12, minmax(18px, 1fr)); gap: 6px; font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px; }
-.years { display: flex; gap: 4px; align-items: flex-end; height: 140px; padding-top: 20px; min-width: max-content; }
-.years button { width: 30px; border: 0; padding: 0; background: none; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
-.years button i { display: block; background: var(--t2); border-radius: 4px 4px 0 0; min-height: 2px; }
+.years { display: flex; gap: 4px; height: 140px; padding-top: 20px; min-width: max-content; }
+.years button { width: 30px; flex: none; border: 0; padding: 0; background: none; display: block; height: 120px; position: relative; }
+.years button i { position: absolute; left: 0; right: 0; bottom: 0; display: block; background: var(--t2); border-radius: 4px 4px 0 0; min-height: 2px; }
 .years button.on i { background: var(--ochre); }
-.years button span { position: absolute; top: -19px; left: -6px; right: -6px; font-size: 12px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.years button span { position: absolute; bottom: calc(var(--h, 0px) + 3px); left: -6px; right: -6px; font-size: 12px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
 .years-l { display: flex; gap: 4px; min-width: max-content; }
 .years-l span { width: 30px; font-size: 12px; color: var(--muted); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); height: 34px; }
+.cal-wrap { display: grid; grid-template-columns: auto auto; gap: 0 6px; min-width: max-content; }
+.cal-d { display: grid; grid-template-rows: repeat(7, 13px); gap: 3px; font-size: 10px; line-height: 13px; color: var(--muted); font-weight: 700; text-align: right; }
+.cal-sp { height: 16px; }
 .cal { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; min-width: max-content; }
 .cal i { border-radius: 3px; background: var(--surface-2); }
 .cal i.x { background: var(--t2); }
@@ -1014,7 +1018,7 @@ function calendario(y, sel) {
     cells += `<i class="${n ? (n > 1 ? 'x2' : 'x') : ''}" title="${n ? fCorta(iso) : ''}"></i>`;
   }
   for (let c = 0, m = 0; c <= col; c++) { if (mesCol[m] === c) { meses += `<span>${MESES[m]}</span>`; m++; } else meses += '<span></span>'; }
-  return `<div class="scroll-x"><div class="cal-m">${meses}</div><div class="cal" aria-label="Días de monte en ${y}">${cells}</div></div>
+  return `<div class="scroll-x"><div class="cal-wrap"><span class="cal-sp"></span><div class="cal-m">${meses}</div><div class="cal-d" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="cal" aria-label="Días de monte en ${y}">${cells}</div></div></div>
     <div class="legend"><span><i style="background:var(--surface-2)"></i>sin salida</span><span><i style="background:var(--t2)"></i>día de monte</span><span><i style="background:var(--ochre)"></i>2 salidas el mismo día</span></div>`;
 }
 function vResumen() {
@@ -1055,10 +1059,10 @@ function vResumen() {
     ${anioSel !== 'todos' ? `<section class="panel"><div class="panel-head"><h3>Días de monte en ${anioSel}</h3><span class="muted small">${dias} días</span></div>${calendario(anioSel, sel)}</section>` : ''}
     <div class="grid2">
       <section class="panel"><h3>Salidas por mes</h3>
-        <div class="scroll-x"><div class="bars">${meses.map((v, i) => `<div class="bar ${i === mesAct ? 'cur' : ''}" style="height:${(v / mx * 100).toFixed(1)}%"><span>${v || ''}</span></div>`).join('')}</div>
+        <div class="scroll-x"><div class="bars">${meses.map((v, i) => `<div><div class="bar ${i === mesAct ? 'cur' : ''}" style="height:${Math.round(v / mx * 140)}px"><span>${v || ''}</span></div></div>`).join('')}</div>
         <div class="bars-l">${MESES.map(m => `<span>${m}</span>`).join('')}</div></div></section>
       <section class="panel"><div class="panel-head"><h3>Todos los años</h3><span class="muted small">récord ${record[0]} (${record[1]})</span></div>
-        <div class="scroll-x" id="yrs"><div class="years">${porAnio.map(([a, n]) => `<button type="button" class="${a === anioSel ? 'on' : ''}" data-y="${a}" aria-label="${a}: ${n} salidas" style="height:100%"><span>${n}</span><i style="height:${(n / mxA * 100).toFixed(1)}%"></i></button>`).join('')}</div>
+        <div class="scroll-x" id="yrs"><div class="years">${porAnio.map(([a, n]) => { const h = Math.max(2, Math.round(n / mxA * 120)); return `<button type="button" class="${a === anioSel ? 'on' : ''}" data-y="${a}" aria-label="${a}: ${n} salidas" style="--h:${h}px"><span>${n}</span><i style="height:${h}px"></i></button>`; }).join('')}</div>
         <div class="years-l">${porAnio.map(([a]) => `<span>${a}</span>`).join('')}</div></div></section>
     </div>
     <div class="grid3">
@@ -1088,7 +1092,7 @@ function vResumen() {
   $('#anio').onchange = e => { anioSel = e.target.value; vResumen(); };
   $$('[data-y]').forEach(b => b.onclick = () => { anioSel = b.dataset.y; vResumen(); });
   $$('[data-rq]').forEach(b => b.onclick = () => irA('buscar', b.dataset.rq));
-  const yrs = $('#yrs'); if (yrs) yrs.scrollLeft = yrs.scrollWidth;
+  const yrs = $('#yrs'); if (yrs) { const on = yrs.querySelector('button.on'); yrs.scrollLeft = on ? on.offsetLeft - yrs.clientWidth / 2 + 15 : yrs.scrollWidth; }
   $('#exBtn').onclick = exportar;
   $('#xlAct').onclick = actualizarExcel;
   const xb = $('#xlBajar'); if (!S.excel) xb.onclick = e => { e.preventDefault(); toast(S.demo ? 'En la versión de prueba no hay Excel en Drive.' : 'Pulsa «Actualizar ahora» para crearlo.'); };
