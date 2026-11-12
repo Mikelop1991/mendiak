@@ -252,6 +252,15 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .records span { color: var(--muted); }
 .records b { text-align: right; }
 
+/* excel */
+.xl { display: flex; gap: 14px; align-items: center; }
+.xl-ico { width: 44px; height: 44px; flex: none; color: #1f7244; }
+.xl-txt { display: grid; gap: 2px; min-width: 0; }
+.xl-btns { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.xl-btns .btn { width: 100%; text-decoration: none; }
+.btn[aria-disabled="true"] { opacity: .55; }
+@media (min-width: 560px) { .xl-btns { grid-template-columns: 1fr 1fr; } }
+
 /* detalle */
 .sheet-bg { position: fixed; inset: 0; background: rgba(10,20,16,.5); z-index: 40; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--bg); border-radius: 22px 22px 0 0; max-height: 90vh; overflow: auto; box-shadow: 0 -10px 30px rgba(0,0,0,.2);
@@ -528,10 +537,10 @@ async function sincronizar(mostrar) {
   try {
     if (S.pend.length) { await api('POST', { ops: S.pend }); S.pend = []; store.set('pend', S.pend); }
     const j = await api('GET');
-    S.listas = j.listas; prepararListas();
+    S.listas = j.listas; prepararListas(); S.excel = j.excel || null;
     const locales = S.salidas.filter(s => s._local);
     S.salidas = j.salidas.map(deFila).concat(locales.filter(l => !j.salidas.some(r => r[0] === l.id)));
-    store.set('cache', { salidas: j.salidas, listas: j.listas, hora: j.hora });
+    store.set('cache', { salidas: j.salidas, listas: j.listas, hora: j.hora, excel: j.excel || null });
     S.ultimaSync = new Date(); S.online = true; recalcular();
     if (mostrar) toast('Datos al día');
     render();
@@ -997,10 +1006,21 @@ function vResumen() {
         <div class="tramos">${TRAMOS.map(([n]) => tr[n] ? `<i style="width:${(tr[n] / trT * 100).toFixed(1)}%;background:var(--t${n})" title="${tr[n]}"></i>` : '').join('')}</div>
         <div class="records">${TRAMOS.map(([n, t]) => `<div><span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--t${n});margin-right:6px"></i>${t}</span><b>${tr[n]}</b></div>`).join('')}</div></section>
     </div>
-    <section class="panel"><h3>Pasar al Excel</h3>
-      <p class="small muted" style="margin:0">Descarga las salidas con las mismas columnas que la hoja Datos (A–P) para pegarlas en el Excel.</p>
-      <div class="two"><div class="field"><label for="exDesde">Salidas desde</label><input id="exDesde" type="date" value="${esc(store.get('ultimoExport', ''))}"><span class="hint">Vacío = todas.</span></div>
-      <div class="field" style="align-content:end"><button type="button" class="btn fir" id="exBtn">Descargar Excel</button></div></div></section>
+    <section class="panel"><h3>Excel</h3>
+      <div class="xl">
+        <div class="xl-ico" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="3" y="3" width="26" height="26" rx="6" fill="currentColor"/><path d="m10 10 12 12M22 10 10 22" stroke="var(--surface)" stroke-width="3" stroke-linecap="round"/></svg></div>
+        <div class="xl-txt"><b>Mendiak Carlos.xlsx</b><span class="small muted" id="xlFecha">${S.excel ? 'Actualizado el ' + esc(S.excel.fecha) + '. Se rehace solo cada hora si hay cambios.' : (S.demo ? 'En la app real se guarda en tu Google Drive.' : 'Todavía no está activado en Google Drive.')}</span></div>
+      </div>
+      <div class="xl-btns">
+        <a class="btn fir" id="xlBajar" ${S.excel ? `href="https://drive.google.com/uc?export=download&id=${esc(S.excel.url.split('/d/')[1].split('/')[0])}"` : 'aria-disabled="true"'} target="_blank" rel="noopener">Descargar Excel</a>
+        <button type="button" class="btn" id="xlAct">Actualizar ahora</button>
+      </div>
+      <p class="small muted" style="margin:0">Es el mismo Excel de siempre (Dashboard, gráficos, Mis montes) con todas las salidas de la app. Ábrelo con Excel en el ordenador; si sale «Vista protegida», pulsa «Habilitar edición» para que se calculen las cifras.</p>
+      <details class="more-fields"><summary>Solo los datos (columnas A–P)</summary><div>
+        <div class="field"><label for="exDesde">Salidas desde</label><input id="exDesde" type="date" value="${esc(store.get('ultimoExport', ''))}"><span class="hint">Vacío = todas.</span></div>
+        <button type="button" class="btn wide" id="exBtn">Descargar solo datos</button>
+      </div></details>
+    </section>
     <button type="button" class="btn" id="goAjustes">Ajustes y conexión</button>
   </div>`;
   $('#anio').onchange = e => { anioSel = e.target.value; vResumen(); };
@@ -1008,7 +1028,27 @@ function vResumen() {
   $$('[data-rq]').forEach(b => b.onclick = () => irA('buscar', b.dataset.rq));
   const yrs = $('#yrs'); if (yrs) yrs.scrollLeft = yrs.scrollWidth;
   $('#exBtn').onclick = exportar;
+  $('#xlAct').onclick = actualizarExcel;
+  const xb = $('#xlBajar'); if (!S.excel) xb.onclick = e => { e.preventDefault(); toast(S.demo ? 'En la versión de prueba no hay Excel en Drive.' : 'Pulsa «Actualizar ahora» para crearlo.'); };
   $('#goAjustes').onclick = () => irA('ajustes');
+}
+
+/* ---- Excel en Drive ---- */
+async function actualizarExcel() {
+  if (S.demo) { toast('En la versión de prueba no hay Excel en Drive.'); return; }
+  if (!S.cfg) { irA('ajustes'); return; }
+  const b = $('#xlAct'); b.disabled = true; b.textContent = 'Preparando… (unos segundos)';
+  try {
+    if (S.pend.length) await sincronizar();
+    const u = S.cfg.url + (S.cfg.url.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(S.cfg.k) + '&accion=excel';
+    const j = await (await fetch(u, { cache: 'no-store' })).json();
+    if (!j.ok) throw new Error(j.error);
+    S.excel = { url: j.url, fecha: j.fecha }; const c = store.get('cache', null); if (c) { c.excel = S.excel; store.set('cache', c); }
+    toast('Excel actualizado'); vResumen();
+  } catch (e) {
+    toast(String(e.message || '').includes('plantilla') ? String(e.message) : 'No se pudo actualizar el Excel. ' + (e.message || 'Revisa la conexión.'));
+    b.disabled = false; b.textContent = 'Actualizar ahora';
+  }
 }
 
 /* ---- Exportar ---- */
@@ -1064,7 +1104,7 @@ function arrancar() {
     leerConfigDeEnlace();
     S.pend = store.get('pend', []);
     const c = store.get('cache', null);
-    if (c) { S.listas = c.listas; prepararListas(); S.salidas = c.salidas.map(deFila); }
+    if (c) { S.listas = c.listas; prepararListas(); S.salidas = c.salidas.map(deFila); S.excel = c.excel || null; }
     else prepararListas();
     S.pend.forEach(op => {
       if (op.accion === 'crear' && !S.salidas.some(x => x.id === op.salida.id)) S.salidas.push(enriquecer(Object.assign({ _local: true }, op.salida)));
