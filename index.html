@@ -335,10 +335,16 @@ const fmtN = n => n == null ? '' : Number(n).toLocaleString('es-ES', { maximumFr
 
 /* ====================== conexión con Google ====================== */
 function leerConfigDeEnlace() {
-  const h = new URLSearchParams(location.hash.slice(1));
-  if (h.get('u') && h.get('k')) {
-    S.cfg = { url: h.get('u'), k: h.get('k') }; store.set('cfg', S.cfg);
-    history.replaceState(null, '', location.pathname + location.search);
+  // la configuración puede venir en el enlace (#u=…&k=… o ?u=…&k=…).
+  // Se deja en la dirección como ?u=…&k=… para que, al añadir a la pantalla de inicio en iPhone/iPad,
+  // el icono la lleve dentro (allí la app instalada no comparte memoria con Safari).
+  const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
+  const u = h.get('u') || q.get('u'), k = h.get('k') || q.get('k');
+  if (u && k) {
+    S.cfg = { url: u, k: k }; store.set('cfg', S.cfg);
+    if (location.hash) history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(u) + '&k=' + encodeURIComponent(k));
+  } else if (S.cfg && S.cfg.url && S.cfg.k && !q.get('u')) {
+    history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
   }
 }
 async function api(method, body) {
@@ -750,7 +756,7 @@ function vAjustes() {
       <p class="small muted" style="margin:0">${S.ultimaSync ? 'Última actualización: ' + S.ultimaSync.toLocaleString('es-ES') : ''}${S.pend.length ? ' · ' + S.pend.length + ' cambios por enviar' : ''}</p>
     </section>
     <button type="button" class="btn" id="aBack">Volver</button></div>`;
-  $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim(), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); sincronizar(true); };
+  $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim(), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); leerConfigDeEnlace(); sincronizar(true); };
   $('#aSync').onclick = () => sincronizar(true);
   $('#aBack').onclick = () => irA('resumen');
 }

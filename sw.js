@@ -1,5 +1,5 @@
 // Mendiak: guarda la app para que abra sin conexión. Los datos van aparte (localStorage).
-const CACHE = 'mendiak-v1';
+const CACHE = 'mendiak-v2';
 const BASE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(BASE))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -15,5 +15,5 @@ self.addEventListener('fetch', e => {
       const copia = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copia));
     }
     return r;
-  }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
+  }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('index.html'))));
 });
