@@ -155,12 +155,25 @@ const PLANTILLA = 'MENDIAK_plantilla.xlsx';
 const NOMBRE_EXCEL = 'Mendiak Carlos.xlsx';
 const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-/** Ejecútala una vez: genera el Excel y programa que se rehaga cada hora si hubo cambios. */
+/** Ejecútala una vez: genera el Excel, lo rehace cada hora si hubo cambios y guarda una copia de la hoja cada semana. */
 function activarExcelAutomatico() {
-  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'excelSiHayCambios').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.getProjectTriggers().filter(t => ['excelSiHayCambios', 'copiaSemanal'].includes(t.getHandlerFunction())).forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('excelSiHayCambios').timeBased().everyHours(1).create();
+  ScriptApp.newTrigger('copiaSemanal').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
+  copiaSemanal();
   const r = generarExcel();
   Logger.log('Excel listo: ' + r.url);
+}
+/** Copia de seguridad de la hoja de datos en la carpeta "Mendiak copias" (guarda las 8 últimas). */
+function copiaSemanal() {
+  const ss = SpreadsheetApp.getActive();
+  const madre = DriveApp.getFileById(ss.getId()).getParents();
+  const base = madre.hasNext() ? madre.next() : DriveApp.getRootFolder();
+  const it = base.getFoldersByName('Mendiak copias');
+  const carpeta = it.hasNext() ? it.next() : base.createFolder('Mendiak copias');
+  DriveApp.getFileById(ss.getId()).makeCopy('Mendiak datos · copia ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), carpeta);
+  const copias = []; const f = carpeta.getFiles(); while (f.hasNext()) copias.push(f.next());
+  copias.sort((x, y) => y.getDateCreated() - x.getDateCreated()).slice(8).forEach(x => x.setTrashed(true));
 }
 function excelSiHayCambios() {
   const props = PropertiesService.getScriptProperties();

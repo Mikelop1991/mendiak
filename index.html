@@ -252,6 +252,17 @@ details.more-fields[open] > div { display: grid; gap: 16px; margin-top: 8px; }
 .records span { color: var(--muted); }
 .records b { text-align: right; }
 
+/* objetivo y recuerdos */
+.goal { display: grid; gap: 6px; }
+.goal-t { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; flex-wrap: wrap; }
+.goal-t b { font-variant-numeric: tabular-nums; }
+.goal-bar { height: 10px; border-radius: 99px; background: rgba(242,241,234,.14); overflow: hidden; }
+.goal-bar i { display: block; height: 100%; border-radius: 99px; background: var(--ochre); }
+.recuerdo .hist button span:first-child { color: var(--ochre); font-weight: 700; }
+html.grande body { zoom: 1.12; }
+html.xgrande body { zoom: 1.25; }
+a.btn { text-decoration: none; }
+
 /* excel */
 .xl { display: flex; gap: 14px; align-items: center; }
 .xl-ico { width: 44px; height: 44px; flex: none; color: #1f7244; }
@@ -646,6 +657,30 @@ function temporada() {
   const sel = S.salidas.filter(s => (s.fecha || '').startsWith(y) && s.mod !== 'Evento');
   return { y, n: sel.length, cum: sel.reduce((a, s) => a + s.cotas.length, 0), km: Math.round(sel.reduce((a, s) => a + (num(s.km) || 0), 0)), alt: Math.max(0, ...sel.map(s => s.altMax || 0)) };
 }
+function objetivo() {
+  const y = new Date().getFullYear();
+  const prev = S.salidas.filter(s => (s.fecha || '').startsWith(String(y - 1)) && s.mod !== 'Evento').length;
+  const manual = +store.get('objetivo', 0);
+  return { meta: manual || prev, auto: !manual, prev };
+}
+function talDia() {
+  const hoy = new Date(); const out = [];
+  for (let k = 0; k <= 3 && out.length === 0; k++) {
+    [-k, k].forEach(dd => {
+      const d = new Date(hoy); d.setDate(d.getDate() + dd);
+      const md = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      S.salidas.forEach(s => { if (s.fecha && s.fecha.slice(5) === md && +s.fecha.slice(0, 4) < hoy.getFullYear() && !out.includes(s)) out.push(s); });
+    });
+  }
+  return out.sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
+}
+function htmlRecuerdos() {
+  const l = talDia(); if (!l.length) return '';
+  const hoyMD = hoyISO().slice(5);
+  const exacto = l[0].fecha.slice(5) === hoyMD;
+  return `<section class="panel recuerdo"><div class="panel-head"><h3>${exacto ? 'Tal día como hoy' : 'Por estas fechas'}</h3></div>
+    <div class="hist">${l.map(s => { const a = new Date().getFullYear() - +s.fecha.slice(0, 4); return `<button type="button" data-hid="${esc(s.id)}"><span>hace ${a} ${a === 1 ? 'año' : 'años'}</span><span><b style="color:var(--ink)">${esc(proper(s.monte))}</b>${acompanantes(s).length ? ' · ' + esc(acompanantes(s).slice(0, 4).join(', ')) : ''}</span></button>`; }).join('')}</div></section>`;
+}
 function saludo() { const h = new Date().getHours(); return h < 13 ? 'Egun on' : h < 21 ? 'Arratsalde on' : 'Gabon'; }
 function resumenBusqueda(q, res) {
   if (!q || !res.length) return '';
@@ -684,21 +719,24 @@ function vBuscar() {
           <button class="clear" type="button" id="qClear" aria-label="Borrar búsqueda" ${S.q ? '' : 'hidden'}>×</button>
         </div>
         <div class="chips" id="recientes" ${S.q ? 'hidden' : ''}>${recientes.map(c => `<button type="button" class="chip ghost" data-q="${esc(proper(c))}">${esc(proper(c))}</button>`).join('')}</div>
+        ${(() => { const o = objetivo(); if (!o.meta) return ''; const pc = Math.min(100, t.n / o.meta * 100); return `<div class="goal" id="goal" ${S.q ? 'hidden' : ''}><div class="goal-t"><span>${o.auto ? 'Para igualar ' + (+t.y - 1) : 'Objetivo ' + t.y}: <b>${t.n} de ${o.meta}</b></span><span>${t.n >= o.meta ? '¡Conseguido!' : 'faltan ' + (o.meta - t.n)}</span></div><div class="goal-bar"><i style="width:${pc.toFixed(1)}%"></i></div></div>`; })()}
         <div class="season" id="season" ${S.q ? 'hidden' : ''} aria-label="Temporada ${t.y}">
           <div><b>${t.n}</b><span>salidas ${t.y}</span></div><div><b>${t.cum}</b><span>cumbres</span></div>
           <div><b>${fmtN(t.km)}</b><span>km</span></div><div><b>${t.alt ? fmtN(t.alt) : '—'}</b><span>cota máx.</span></div>
         </div>
       </section>
+      <div id="recuerdos" ${S.q ? 'hidden' : ''}>${htmlRecuerdos()}</div>
       <div id="resultados"></div>
     </div>
     <aside class="side-panel" id="panel" aria-label="Detalle"></aside>
   </div>`;
   pintarResultados(filtrar(S.q));
   pintarPanel();
+  $$('#recuerdos [data-hid]').forEach(b => b.onclick = () => detalle(b.dataset.hid));
   const inp = $('#q');
   let deb;
   inp.addEventListener('input', () => {
-    S.q = inp.value; S.limit = 40; $('#qClear').hidden = !S.q; $('#recientes').hidden = !!S.q; $('#season').hidden = !!S.q;
+    S.q = inp.value; S.limit = 40; $('#qClear').hidden = !S.q; $('#recientes').hidden = !!S.q; $('#season').hidden = !!S.q; $('#recuerdos').hidden = !!S.q; const g = $('#goal'); if (g) g.hidden = !!S.q;
     clearTimeout(deb); deb = setTimeout(() => pintarResultados(filtrar(S.q)), 120);
   });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
@@ -742,7 +780,8 @@ function htmlDetalle(s, compacto) {
     ${who.length ? `<div class="people" aria-label="Compañeros">${who.map(n => `<span>${esc(n)}</span>`).join('')}</div>` : (s.nombres.length ? '<div class="muted">Fue solo</div>' : '')}
     ${filas.length ? `<dl class="kv">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
     ${visitas.length > 1 ? `<section class="panel"><div class="panel-head"><h3>${esc(proper(s.cumbre))}: ${visitas.length} veces</h3><button type="button" class="chip" data-vertodas="${esc(proper(s.cumbre))}">Buscar</button></div>
-      <div class="hist">${visitas.slice(0, compacto ? 5 : 12).map(v => `<button type="button" data-hid="${esc(v.id)}" class="${v.id === s.id ? 'cur' : ''}"><span>${fCorta(v.fecha)}</span><span>${esc(acompanantes(v).join(', ') || '—')}</span></button>`).join('')}</div></section>` : ''}
+      <div class="hist">${visitas.slice(0, compacto ? 5 : 12).map(v => `<button type="button" data-hid="${esc(v.id)}" class="${v.id === s.id ? 'cur' : ''}"><span>${fCorta(v.fecha)}</span><span>${esc(acompanantes(v).join(', ') || 'Solo')}</span></button>`).join('')}</div></section>` : ''}
+    <div class="row">${/^\d{5,12}$/.test(String(s.idRuta).trim()) ? `<a class="btn" href="https://www.wikiloc.com/wikiloc/view.do?id=${esc(String(s.idRuta).trim())}" target="_blank" rel="noopener">Ver ruta</a>` : ''}<button type="button" class="btn" data-share="${esc(s.id)}">Compartir</button></div>
     <div class="row"><button type="button" class="btn fir" data-edit="${esc(s.id)}">Corregir</button>${!escritorio() ? '<button type="button" class="btn" data-close>Cerrar</button>' : ''}</div>
     <div data-delbox><button type="button" class="btn danger" data-del="${esc(s.id)}">Borrar esta salida</button></div>
   </div>`;
@@ -751,6 +790,7 @@ function enlazarDetalle(root) {
   root.querySelectorAll('[data-close]').forEach(b => b.onclick = cerrarHoja);
   root.querySelectorAll('[data-hid]').forEach(b => b.onclick = () => detalle(b.dataset.hid));
   root.querySelectorAll('[data-vertodas]').forEach(b => b.onclick = () => irA('buscar', b.dataset.vertodas));
+  root.querySelectorAll('[data-share]').forEach(b => b.onclick = () => compartir(S.salidas.find(x => String(x.id) === b.dataset.share)));
   root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
     const s = S.salidas.find(x => String(x.id) === b.dataset.edit); cerrarHoja();
     S.tab = 'nueva'; $$('nav.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'nueva')); vForm(s); window.scrollTo(0, 0);
@@ -765,6 +805,24 @@ function enlazarDetalle(root) {
       encolar({ accion: 'borrar', id }); selId = null; cerrarHoja(); render(); toast('Salida borrada');
     };
   });
+}
+function textoSalida(s) {
+  const p = s.fecha ? fParts(s.fecha) : null;
+  const dia = p ? DIAS[p.dt.getDay()].replace(/^./, c => c.toUpperCase()) + ' ' + p.d + ' de ' + MESES_L[p.m - 1] : '';
+  const who = acompanantes(s);
+  let t = `⛰️ ${proper(s.monte)}${s.cotas.length ? ' (' + s.cotas.map(fmtN).join(', ') + ' m)' : ''}`;
+  if (dia) t += `\n📅 ${dia}${p ? ' de ' + p.y : ''}`;
+  if (who.length) t += `\n👥 Con ${who.join(', ')}`;
+  if (num(s.km)) t += `\n🥾 ${fmtN(num(s.km))} km`;
+  const r = REF.get(s.cumbre); if (r && r.veces > 1) t += `\n🔁 Es la vez nº ${S.salidas.filter(x => x.cumbre === s.cumbre && (x.fecha || '') <= (s.fecha || '')).length} en ${proper(s.cumbre)}`;
+  if (/^\d{5,12}$/.test(String(s.idRuta).trim())) t += `\n🗺️ https://www.wikiloc.com/wikiloc/view.do?id=${String(s.idRuta).trim()}`;
+  return t + '\n— Mendiak ' + propietario();
+}
+async function compartir(s) {
+  if (!s) return; const t = textoSalida(s);
+  if (navigator.share) { try { await navigator.share({ text: t }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(t); toast('Texto copiado. Pégalo en WhatsApp.'); }
+  catch (e) { window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); }
 }
 function detalle(id) {
   const s = S.salidas.find(x => String(x.id) === String(id)); if (!s) return;
@@ -1081,7 +1139,15 @@ function vAjustes() {
       <div class="row"><button type="button" class="btn fir" id="aSave">Guardar y actualizar</button><button type="button" class="btn" id="aSync">Actualizar ahora</button></div>
       <p class="small muted" style="margin:0">${S.ultimaSync ? 'Última actualización: ' + S.ultimaSync.toLocaleString('es-ES') : ''}${S.pend.length ? ' · ' + S.pend.length + ' cambios por enviar' : ''}</p>
     </section>
+    <section class="panel"><h3>Pantalla y objetivo</h3>
+      <div class="chips" role="group" aria-label="Tamaño de letra"><span class="chips-label" style="align-self:center">Letra:</span>
+        ${[['normal', 'Normal'], ['grande', 'Grande'], ['xgrande', 'Muy grande']].map(([k, t]) => `<button type="button" class="chip ${(store.get('letra', 'normal') === k) ? 'on' : ''}" data-letra="${k}">${t}</button>`).join('')}</div>
+      <div class="field"><label for="aObj">Objetivo de salidas este año</label><input id="aObj" type="number" inputmode="numeric" min="0" placeholder="Vacío = igualar el año pasado (${objetivo().prev})" value="${esc(store.get('objetivo', '') || '')}"></div>
+      <p class="small muted" style="margin:0">Estos dos ajustes se guardan en este aparato.</p>
+    </section>
     <button type="button" class="btn" id="aBack">Volver</button></div>`;
+  $$('[data-letra]').forEach(b => b.onclick = () => { store.set('letra', b.dataset.letra); aplicarLetra(); vAjustes(); });
+  $('#aObj').onchange = e => { store.set('objetivo', +e.target.value || 0); toast('Objetivo guardado'); };
   $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim(), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); leerConfigDeEnlace(); sincronizar(true); };
   $('#aSync').onclick = () => sincronizar(true);
   $('#aBack').onclick = () => irA('resumen');
@@ -1095,7 +1161,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 let anchoPrev = escritorio();
 window.addEventListener('resize', () => { const e = escritorio(); if (e !== anchoPrev) { anchoPrev = e; const id = selId; cerrarHoja(); render(); if (id && S.tab === 'buscar') detalle(id); } });
 
+function aplicarLetra() { const l = store.get('letra', 'normal'); document.documentElement.classList.toggle('grande', l === 'grande'); document.documentElement.classList.toggle('xgrande', l === 'xgrande'); }
 function arrancar() {
+  aplicarLetra();
   if (window.MENDIAK_DEMO) {
     S.demo = true; $('#demoBanner').hidden = false;
     S.listas = window.MENDIAK_DEMO.listas; prepararListas();
