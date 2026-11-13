@@ -453,6 +453,9 @@ h3 { font-size: 14px; letter-spacing: .1em; }
   .sheet { animation: up .24s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { translate: 0 60px; opacity: .5; } }
   .view { animation: fade .18s ease-out; } @keyframes fade { from { opacity: .4; translate: 0 6px; } }
 }
+/* repetir / los mismos */
+.lbl-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
+.chip.mini{font-size:.86em;padding:6px 12px;border-style:dashed}
 </style>
 </head>
 <body>
@@ -899,7 +902,7 @@ function htmlDetalle(s, compacto) {
     ${filas.length ? `<dl class="kv">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
     ${visitas.length > 1 ? `<section class="panel"><div class="panel-head"><h3>${esc(proper(s.cumbre))}: ${visitas.length} veces</h3><button type="button" class="chip" data-vertodas="${esc(proper(s.cumbre))}">Buscar</button></div>
       <div class="hist">${visitas.slice(0, compacto ? 5 : 12).map(v => `<button type="button" data-hid="${esc(v.id)}" class="${v.id === s.id ? 'cur' : ''}"><span>${fCorta(v.fecha)}</span><span>${esc(acompanantes(v).join(', ') || 'Solo')}</span></button>`).join('')}</div></section>` : ''}
-    <div class="row">${/^\d{5,12}$/.test(String(s.idRuta).trim()) ? `<a class="btn" href="https://www.wikiloc.com/wikiloc/view.do?id=${esc(String(s.idRuta).trim())}" target="_blank" rel="noopener">Ver ruta</a>` : ''}<button type="button" class="btn" data-share="${esc(s.id)}">Compartir</button></div>
+    <div class="row">${/^\d{5,12}$/.test(String(s.idRuta).trim()) ? `<a class="btn" href="https://www.wikiloc.com/wikiloc/view.do?id=${esc(String(s.idRuta).trim())}" target="_blank" rel="noopener">Ver ruta</a>` : ''}<button type="button" class="btn" data-share="${esc(s.id)}">Compartir</button><button type="button" class="btn" data-repe="${esc(s.id)}" title="Apuntar otra salida igual con fecha de hoy">Repetir hoy</button></div>
     <div class="row"><button type="button" class="btn fir" data-edit="${esc(s.id)}">Corregir</button>${!escritorio() ? '<button type="button" class="btn" data-close>Cerrar</button>' : ''}</div>
     <div data-delbox><button type="button" class="btn danger" data-del="${esc(s.id)}">Borrar esta salida</button></div>
   </div>`;
@@ -909,6 +912,12 @@ function enlazarDetalle(root) {
   root.querySelectorAll('[data-hid]').forEach(b => b.onclick = () => detalle(b.dataset.hid));
   root.querySelectorAll('[data-vertodas]').forEach(b => b.onclick = () => irA('buscar', b.dataset.vertodas));
   root.querySelectorAll('[data-share]').forEach(b => b.onclick = () => compartir(S.salidas.find(x => String(x.id) === b.dataset.share)));
+  root.querySelectorAll('[data-repe]').forEach(b => b.onclick = () => {
+    const s = S.salidas.find(x => String(x.id) === b.dataset.repe); if (!s) return; cerrarHoja();
+    store.set('borrador', { fecha: hoyISO(), monte: s.monte, cotasTxt: (s.cotas || []).join(', '), km: s.km, sierra: s.sierra, provincia: s.provincia,
+      salida: s.salida, participantes: s.participantes, modalidad: s.modalidad, idRuta: s.idRuta, _repe: true });
+    S.tab = 'nueva'; $$('nav.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'nueva')); vForm(null); window.scrollTo(0, 0);
+  });
   root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
     const s = S.salidas.find(x => String(x.id) === b.dataset.edit); cerrarHoja();
     S.tab = 'nueva'; $$('nav.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'nueva')); vForm(s); window.scrollTo(0, 0);
@@ -971,6 +980,9 @@ function vForm(ed) {
   const frecuentes = companerosFrecuentes().filter(n => n !== propietario()).slice(0, 17);
   frecuentes.unshift(propietario());
   elegidos.forEach(n => { if (!frecuentes.includes(n)) frecuentes.push(n); });
+  const ultima = S.salidas.filter(x => x.fecha && (!ed || x.id !== ed.id)).reduce((m, x) => (!m || x.fecha > m.fecha) ? x : m, null);
+  const ultimaGente = ultima ? nombresDe(ultima.participantes) : [];
+  ultimaGente.forEach(n => { if (!frecuentes.includes(n)) frecuentes.push(n); });
   const cotasTxt = ed ? (ed.cotas || []).join(', ') : (s.cotasTxt || '');
   $('#app').innerHTML = `<div class="view">
     <h2>${ed ? 'Corregir salida' : 'Nueva salida'}</h2>
@@ -989,7 +1001,7 @@ function vForm(ed) {
       </div>
       </div>
       <div class="form-card">
-      <div class="field"><span class="lbl">¿Con quién fuiste?</span>
+      <div class="field"><div class="lbl-row"><span class="lbl">¿Con quién fuiste?</span>${ultimaGente.length ? '<button type="button" class="chip mini" id="fMismos">Los mismos que la última vez</button>' : ''}</div>
         <div class="chips" id="comp">${frecuentes.map(n => `<button type="button" class="chip ${elegidos.has(n) ? 'on' : ''}" data-n="${esc(n)}" aria-pressed="${elegidos.has(n)}">${esc(n)}</button>`).join('')}</div>
         <input id="fOtros" placeholder="Otros (escribe y separa con comas)" aria-label="Otros compañeros"></div>
       <div class="field"><span class="lbl">Modalidad</span>
@@ -1014,6 +1026,11 @@ function vForm(ed) {
   let modalidad = s.modalidad || '';
   const tocadoMod = { v: !!s.modalidad };
   $$('#comp .chip').forEach(b => b.onclick = () => { b.classList.toggle('on'); b.setAttribute('aria-pressed', b.classList.contains('on')); guardarBorrador(); });
+  const mismos = $('#fMismos'); if (mismos) mismos.onclick = () => {
+    const set = new Set(ultimaGente);
+    $$('#comp .chip').forEach(b => { const on = set.has(b.dataset.n); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    toast('Marcados: ' + (acompanantes(ultima).join(', ') || 'solo tú')); guardarBorrador();
+  };
   $$('#mod .chip').forEach(b => b.onclick = () => {
     $$('#mod .chip').forEach(x => x.classList.remove('on')); b.classList.add('on'); modalidad = b.dataset.m === 'Monte a pie' ? '' : b.dataset.m; tocadoMod.v = true; guardarBorrador();
   });
@@ -1083,7 +1100,8 @@ function vForm(ed) {
     toast(ed ? 'Cambios guardados' : 'Salida guardada');
     selId = nueva.id; irA('buscar', ''); selId = nueva.id; if (escritorio()) pintarPanel();
   });
-  if (!ed && borrador && borrador.monte) $('#auto').textContent = 'Tenías una salida a medias: la hemos recuperado.';
+  if (!ed && borrador && borrador._repe) { $('#auto').textContent = '✓ Copiada de la salida anterior con fecha de hoy. Cambia lo que haga falta.'; }
+  else if (!ed && borrador && borrador.monte) $('#auto').textContent = 'Tenías una salida a medias: la hemos recuperado.';
 }
 
 /* ---- Montes ---- */
