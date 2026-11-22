@@ -1220,6 +1220,9 @@ function cargarLeaflet() {
   const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css);
   return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
 }
+/* colores del mapa por altitud: de frío a cálido, que destacan sobre el verde y marrón del relieve */
+const COLOR_MAPA = ['#20b2c8', '#3a6ee0', '#8a45d4', '#d4338a', '#e1302b'];
+function escalaMapa() { const z = mapa ? mapa.getZoom() : 10; return z <= 7 ? .55 : z <= 8 ? .7 : z <= 9 ? .85 : 1; }
 function ajustarMapa() {
   const el = $('#mapa'), barra = $('nav.tabs'); if (!el || !mapa) return;
   const abajo = barra && getComputedStyle(barra).display !== 'none' ? barra.getBoundingClientRect().height : 0;   // la barra es fija: offsetParent no sirve
@@ -1318,7 +1321,7 @@ async function pintarMapa(l) {
   if (!$('#mapa')) {
     if (mapa) { mapa.remove(); mapa = null; }
     box.innerHTML = `<div class="situar" id="situar" hidden></div><div class="mapa-wrap"><div id="mapa" class="mapa" aria-label="Mapa de los montes"></div>
-      <div class="mapa-ley" aria-label="Colores por altitud">${['< 1.000', '1.000', '1.500', '2.000', '3.000 +'].map((t, i) => `<span><i style="background:var(--t${i + 1})"></i>${t}</span>`).join('')}</div>
+      <div class="mapa-ley" aria-label="Colores por altitud">${['< 1.000', '1.000', '1.500', '2.000', '3.000 +'].map((t, i) => `<span><i style="background:${COLOR_MAPA[i]}"></i>${t}</span>`).join('')}</div>
       <p class="mapa-nota" id="mapaNota"></p></div>`;
     try { await cargarLeaflet(); } catch (e) { box.innerHTML = `<div class="empty">${VACIO_SVG}<b>El mapa necesita conexión</b><span>Vuelve a intentarlo cuando haya internet.</span></div>`; return; }
     if (!$('#mapa')) return;   // se cambió de pantalla mientras cargaba
@@ -1326,6 +1329,7 @@ async function pintarMapa(l) {
     L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 17, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://opentopomap.org">OpenTopoMap</a>' }).addTo(mapa);
     mapa.setView([42.8, -1.65], 8);   // Navarra, mientras no haya montes situados
     capaMontes = L.layerGroup().addTo(mapa);
+    mapa.on('zoomend', () => { const e = escalaMapa(); capaMontes.eachLayer(m => m.setRadius(m.options.base * e)); });
     mapa.on('popupopen', e => { const b = e.popup.getElement().querySelector('[data-c]'); if (b) b.onclick = () => irA('buscar', proper(b.dataset.c)); });
     mapa._encuadrar = true;
   }
@@ -1333,11 +1337,11 @@ async function pintarMapa(l) {
   pintarSituar();
   if (!situando.activo && !S.demo && pendientesMapa().length && pendientesMapa().length <= 5) situarMontes();   // los nuevos, solos
   capaMontes.clearLayers();
-  const raiz = getComputedStyle(document.documentElement);
-  // los más subidos encima
+  // los más subidos encima; tamaño según las veces, y más pequeños cuanto más lejos está el mapa
+  const escala = escalaMapa();
   pts.sort((a, b) => a.r.veces - b.r.veces).forEach(({ r, c }) => {
-    const col = raiz.getPropertyValue('--t' + (tramo(r.alt) || 1)).trim() || '#2d6fc4';
-    L.circleMarker(c, { radius: 6 + Math.min(9, Math.sqrt(r.veces) * 2), color: '#fff', weight: 2, fillColor: col, fillOpacity: .92 })
+    const base = 5 + Math.min(8, Math.sqrt(r.veces) * 1.6);
+    L.circleMarker(c, { radius: base * escala, color: '#fff', weight: 1.5, fillColor: COLOR_MAPA[(tramo(r.alt) || 1) - 1], fillOpacity: .95, base })
       .bindPopup(`<div class="pop"><b>${esc(proper(r.nombre))}</b><span>${[r.alt ? fmtN(r.alt) + ' m' : '', r.sierra].filter(Boolean).map(esc).join(' · ')}</span>
         <span>${r.veces} ${r.veces === 1 ? 'vez' : 'veces'} · última ${esc(fCorta(r.ultima))}</span>
         <button type="button" data-c="${esc(r.nombre)}">Ver salidas</button></div>`, { autoPanPaddingTopLeft: [56, 16], autoPanPadding: [16, 16] })
@@ -1349,11 +1353,12 @@ async function pintarMapa(l) {
   ajustarMapa();
   setTimeout(ajustarMapa, 450);   // otra vez al acabar la transición de pantalla, ya en su sitio
   if (pts.length && (mapa._encuadrar || montesQ)) {
-    // encuadre en la zona de siempre: un viaje lejano (Atlas, Alpes…) no aleja todo el mapa
-    const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
-    const mLa = med(pts.map(p => p.c[0])), mLo = med(pts.map(p => p.c[1]));
-    const cerca = pts.filter(p => Math.abs(p.c[0] - mLa) < 2.5 && Math.abs(p.c[1] - mLo) < 3.5);
-    mapa.fitBounds(L.latLngBounds((cerca.length ? cerca : pts).map(p => p.c)), { padding: [28, 28], maxZoom: 13 });
+    // encuadre en la zona de siempre: donde más montes hay juntos (sin filtrar, la zona de casa;
+    // filtrando, todos los que salen, salvo alguno muy lejano: Atlas, Alpes…)
+    const cerca = (c, dLa, dLo) => pts.filter(p => Math.abs(p.c[0] - c[0]) < dLa && Math.abs(p.c[1] - c[1]) < dLo);
+    const centro = pts.reduce((m, p) => { const n = cerca(p.c, .6, .9).length; return n > m.n ? { n, c: p.c } : m; }, { n: -1 }).c;
+    const zona = montesQ ? cerca(centro, 3, 4) : cerca(centro, .8, 1.1);
+    mapa.fitBounds(L.latLngBounds((zona.length ? zona : pts).map(p => p.c)), { padding: [24, 24], maxZoom: 12 });
     mapa._encuadrar = false;
   }
 }
