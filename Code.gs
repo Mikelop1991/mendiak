@@ -347,7 +347,8 @@ function fechaSerie_(v) {
    La primera vez, ejecuta buscarCoordenadas() a mano (tarda unos minutos).
    Después, los montes nuevos se buscan solos cada hora junto con el Excel. */
 const HOJA_COORDS = 'Coordenadas';
-const OVERPASS = 'https://overpass-api.de/api/interpreter';
+// servidores públicos de OpenStreetMap: si uno no responde (o no deja entrar a Google), se prueba el siguiente
+const OVERPASS = ['https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass-api.de/api/interpreter'];
 // zonas donde buscar (sur, oeste, norte, este): Navarra y Euskal Herria, Pirineo, norte, Asturias y Picos, centro
 const ZONAS_MAPA = [[42.3, -3.6, 43.5, -0.7], [42.0, -0.7, 43.2, 3.4], [41.6, -4.5, 43.4, -1.6], [42.6, -7.2, 43.6, -4.3], [40.1, -5.6, 41.3, -3.2]];
 
@@ -451,12 +452,19 @@ function buscarFuera_(nombre) {
   return leerCsv_(pedirOverpass_(q));
 }
 function pedirOverpass_(q) {
-  for (let intento = 0; intento < 3; intento++) {
-    const r = UrlFetchApp.fetch(OVERPASS, { method: 'post', payload: { data: q }, muteHttpExceptions: true });
-    if (r.getResponseCode() === 200) return r.getContentText('UTF-8');
-    Utilities.sleep(15000 * (intento + 1));   // OSM ocupado: esperar y repetir
+  let ultimo = '';
+  for (let vuelta = 0; vuelta < 2; vuelta++) {
+    for (const url of OVERPASS) {
+      try {
+        const r = UrlFetchApp.fetch(url, { method: 'post', payload: { data: q }, muteHttpExceptions: true });
+        const txt = r.getContentText('UTF-8');
+        if (r.getResponseCode() === 200 && !/^\s*</.test(txt)) return txt;   // una página de error empieza por «<»
+        ultimo = url + ' → ' + r.getResponseCode();
+      } catch (err) { ultimo = url + ' → ' + err.message; }
+    }
+    Utilities.sleep(10000);   // todos ocupados: esperar y dar otra vuelta
   }
-  throw new Error('OpenStreetMap no responde');
+  throw new Error('OpenStreetMap no responde (' + ultimo + ')');
 }
 function leerCsv_(txt) {
   return txt.split('\n').filter(Boolean).map(l => {
