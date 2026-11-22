@@ -352,6 +352,19 @@ const HOJA_COORDS = 'Coordenadas';
 const OVERPASS = ['https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass-api.de/api/interpreter'];
 // zonas donde buscar (sur, oeste, norte, este): Navarra y Euskal Herria, Pirineo, norte, Asturias y Picos, centro
 const ZONAS_MAPA = [[42.3, -3.6, 43.5, -0.7], [42.0, -0.7, 43.2, 3.4], [41.6, -4.5, 43.4, -1.6], [42.6, -7.2, 43.6, -4.3], [40.1, -5.6, 41.3, -3.2]];
+const LADO = 0.5;   // las zonas se piden en cuadros de medio grado: cada petición es pequeña y rápida
+
+/** Cuadros (sur, oeste, norte, este) que cubren las zonas, sin repetir. */
+function cuadros_() {
+  const vistos = {}, out = [];
+  ZONAS_MAPA.forEach(([s, o, n, e]) => {
+    for (let i = Math.floor(s / LADO); i * LADO < n; i++) for (let j = Math.floor(o / LADO); j * LADO < e; j++) {
+      const k = i + ',' + j; if (vistos[k]) continue; vistos[k] = 1;
+      out.push([i * LADO, j * LADO, (i + 1) * LADO, (j + 1) * LADO].map(x => Math.round(x * 100) / 100));
+    }
+  });
+  return out;
+}
 
 /** Busca las coordenadas de los montes que aún no están en la hoja «Coordenadas». Se puede ejecutar a mano. */
 function buscarCoordenadas() { return buscarCoordenadas_(4.5 * 60000); }
@@ -362,40 +375,55 @@ function buscarCoordenadas_(limite) {
   const props = PropertiesService.getScriptProperties();
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'buscarCoordenadas').forEach(t => ScriptApp.deleteTrigger(t));
   const hoja = hojaCoords_();
-  const hechos = new Set(hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues().map(r => normal_(r[0])) : []);
+  const filasHoja = hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).getValues() : [];
+  const hechos = new Set(filasHoja.map(r => normal_(r[0])));
   let faltan = cumbresConCota_().filter(c => !hechos.has(normal_(c.nombre)));
-  if (!faltan.length) { props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA'); Logger.log('Todos los montes tienen ya su fila en «Coordenadas».'); return 0; }
+  if (!faltan.length) { borrarProgreso_(props); Logger.log('Todos los montes tienen ya su fila en «Coordenadas».'); return 0; }
   Logger.log('Montes por situar: ' + faltan.length);
-  let zona = +(props.getProperty('MAPA_ZONA') || 0), situados = 0, cortado = false;
+  const todos = cuadros_();
+  let cuadro = +(props.getProperty('MAPA_ZONA') || 0), situados = 0, cortado = false;
+  // pocos montes nuevos después de la primera vez: se buscan por su nombre, sin recorrer todo el mapa
+  const porNombre = props.getProperty('MAPA_HECHO') === '1' && faltan.length <= 10 && cuadro === 0;
 
-  // 1) las zonas de siempre, de una en una (cada zona: una descarga y el cruce de todos los montes que faltan)
-  while (zona < ZONAS_MAPA.length) {
-    if (!quedaTiempo(150000)) { cortado = true; break; }   // cada descarga puede tardar: solo se empieza si sobra tiempo
+  // los «revisar» siguen abiertos mientras se recorren cuadros: si aparece uno que cuadra mejor, se cambia
+  const revisar = new Map();
+  filasHoja.forEach((r, i) => { if (r[5] === 'revisar') revisar.set(normal_(r[0]), { fila: i + 2, nombre: r[0] }); });
+  const cotas = new Map(cumbresConCota_().map(c => [normal_(c.nombre), c]));
+
+  // 1) el mapa por cuadros
+  while (!porNombre && cuadro < todos.length) {
+    if (!quedaTiempo(90000)) { cortado = true; break; }   // cada petición puede tardar: solo se empieza si sobra tiempo
     let picos;
-    try { picos = picosEn_(ZONAS_MAPA[zona]); }
-    catch (err) {
-      Logger.log(`Zona ${zona + 1}: ${err.message}`);
-      if (OVERPASS.every(u => servidoresMalos_[u])) { cortado = true; break; }
-      continue;   // se repite la zona con el siguiente servidor, si queda tiempo
-    }
+    try { picos = picosEn_(todos[cuadro]); }
+    catch (err) { Logger.log(`Cuadro ${cuadro + 1}: ${err.message}`); if (!servidorLibre_()) { cortado = true; break; } continue; }
     const idx = indicePicos_(picos), filas = [];
-    faltan = faltan.filter(c => { const r = elegir_(c, idx.get(clave_(c.nombre)) || []); if (r) { filas.push(filaCoords_(c, r)); return false; } return true; });
+    faltan = faltan.filter(c => {
+      const r = elegir_(c, idx.get(clave_(c.nombre)) || []); if (!r) return true;
+      filas.push(filaCoords_(c, r));
+      if (r.estado === 'revisar') revisar.set(normal_(c.nombre), { fila: hoja.getLastRow() + filas.length, nombre: c.nombre });
+      return false;
+    });
+    revisar.forEach((v, k) => {
+      const c = cotas.get(k); if (!c) return;
+      const r = elegir_(c, idx.get(clave_(c.nombre)) || []);
+      if (r && r.estado === 'ok') { hoja.getRange(v.fila, 1, 1, 7).setValues([filaCoords_(c, r)]); revisar.delete(k); }
+    });
     escribirCoords_(hoja, filas); situados += filas.length;
-    Logger.log(`Zona ${zona + 1} de ${ZONAS_MAPA.length}: ${picos.length} cumbres en el mapa, ${filas.length} montes situados.`);
-    props.setProperty('MAPA_ZONA', String(++zona));
+    if (picos.length) Logger.log(`Cuadro ${cuadro + 1} de ${todos.length}: ${picos.length} cumbres, ${filas.length} montes situados.`);
+    props.setProperty('MAPA_ZONA', String(++cuadro));
   }
 
-  // 2) los que quedan y son altos (Alpes, Atlas…): búsqueda amplia, uno a uno; el resto, «no encontrado»
+  // 2) lo que queda: por su nombre en un área amplia (Alpes, Atlas…); el primer recorrido, solo los altos
   if (!cortado) {
     let fuera = +(props.getProperty('MAPA_FUERA') || 0);
     const filas = [];
     for (const c of faltan) {
-      if (!quedaTiempo(40000)) { cortado = true; break; }
+      if (!quedaTiempo(60000)) { cortado = true; break; }
       let r = null;
-      if (c.cota >= 2000 && fuera < 25) {
-        fuera++; props.setProperty('MAPA_FUERA', String(fuera));
+      if (porNombre || (c.cota >= 2000 && fuera < 25)) {
+        if (!porNombre) props.setProperty('MAPA_FUERA', String(++fuera));
         try { r = elegir_(c, buscarFuera_(c.nombre)); }
-        catch (err) { Logger.log(err.message); fuera--; if (OVERPASS.every(u => servidoresMalos_[u])) { cortado = true; break; } continue; }
+        catch (err) { Logger.log(err.message); if (!porNombre) props.setProperty('MAPA_FUERA', String(--fuera)); if (!servidorLibre_()) { cortado = true; break; } continue; }
       }
       filas.push(r ? filaCoords_(c, r) : [c.nombre, '', '', '', '', 'no encontrado', c.cota || '']);
       if (r) situados++;
@@ -407,19 +435,20 @@ function buscarCoordenadas_(limite) {
 
   if (faltan.length) {
     // si OpenStreetMap no responde en varias vueltas seguidas, se deja para la próxima hora
-    const fallos = situados ? 0 : +(props.getProperty('MAPA_FALLOS') || 0) + 1;
+    const fallos = situados || !cortado ? 0 : +(props.getProperty('MAPA_FALLOS') || 0) + 1;
     props.setProperty('MAPA_FALLOS', String(fallos));
     if (fallos >= 6) { props.deleteProperty('MAPA_FALLOS'); Logger.log(`OpenStreetMap no responde. Quedan ${faltan.length}: se reintentará en la revisión de cada hora o al ejecutarlo a mano.`); return situados; }
     ScriptApp.newTrigger('buscarCoordenadas').timeBased().after(60000).create();
-    Logger.log(`Situados ahora: ${situados}. Quedan ${faltan.length}: sigo solo dentro de un minuto (no hace falta hacer nada).`);
+    Logger.log(`Situados en esta vuelta: ${situados}. Quedan ${faltan.length}${porNombre ? '' : ` (vamos por el cuadro ${cuadro} de ${todos.length})`}: sigo solo dentro de un minuto, no hace falta hacer nada.`);
     return situados;
   }
-  props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA'); props.deleteProperty('MAPA_FALLOS');
+  borrarProgreso_(props); props.setProperty('MAPA_HECHO', '1');
   const v = hoja.getLastRow() > 1 ? hoja.getRange(2, 6, hoja.getLastRow() - 1, 1).getValues().map(r => r[0]) : [];
   const n = e => v.filter(x => x === e).length;
   Logger.log(`Listo: ${n('ok')} bien, ${n('revisar')} para revisar, ${n('no encontrado')} sin encontrar, ${n('manual')} a mano.`);
   return situados;
 }
+function borrarProgreso_(props) { ['MAPA_ZONA', 'MAPA_FUERA', 'MAPA_FALLOS'].forEach(k => props.deleteProperty(k)); }
 function filaCoords_(c, r) { return [c.nombre, r.lat, r.lon, r.ele || '', r.nombre, r.estado, c.cota || '']; }
 function escribirCoords_(hoja, filas) {
   if (!filas.length) return;
@@ -436,7 +465,7 @@ function reintentarNoEncontrados() {
     hoja.getRange(2, 1, n, 8).clearContent();
     escribirCoords_(hoja, filas);
   }
-  const props = PropertiesService.getScriptProperties(); props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA');
+  const props = PropertiesService.getScriptProperties(); borrarProgreso_(props); props.deleteProperty('MAPA_HECHO');
   buscarCoordenadas();
 }
 function hojaCoords_() {
@@ -494,8 +523,8 @@ function clave_(s) {
 }
 /** Descarga las cumbres con nombre de una zona: [{lat, lon, ele, nombres}] */
 function picosEn_(z) {
-  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:90];` +
-            `node["natural"~"^(peak|volcano|hill)$"]["name"](${z.join(',')});out;`;
+  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:25];` +
+            `node["natural"="peak"]["name"](${z.join(',')});out;`;
   return leerCsv_(pedirOverpass_(q));
 }
 function buscarFuera_(nombre) {
@@ -504,22 +533,30 @@ function buscarFuera_(nombre) {
             `node["natural"~"^(peak|volcano)$"]["name"~"${txt}",i](27,-18,60,20);out;`;
   return leerCsv_(pedirOverpass_(q));
 }
-let servidoresMalos_ = {};   // los que han fallado en esta ejecución no se vuelven a probar
-/** Una sola petición (para no pasarse de tiempo): al primer servidor que no haya fallado en esta ejecución,
-    empezando por el que funcionó la última vez. Si falla, queda apartado y la siguiente petición usa otro. */
+/** Servidores que han fallado hace poco (se recuerdan 30 min entre ejecuciones): no se vuelven a probar todavía. */
+function malos_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('MAPA_MALOS') || '{}'); } catch (e) { return {}; } }
+function servidorLibre_() { const m = malos_(), ahora = Date.now(); return OVERPASS.some(u => !(m[u] > ahora - 30 * 60000)); }
+/** Una sola petición (para no pasarse de tiempo): al servidor que funcionó la última vez o, si no, al primero libre.
+    Si falla, queda apartado un rato y la siguiente petición usa otro. */
 function pedirOverpass_(q) {
-  const props = PropertiesService.getScriptProperties(), bueno = props.getProperty('MAPA_SERVIDOR');
-  const url = OVERPASS.slice().sort((a, b) => (b === bueno) - (a === bueno)).filter(u => !servidoresMalos_[u])[0];
-  if (!url) throw new Error('Ningún servidor de OpenStreetMap responde ahora. Se volverá a intentar.');
+  const props = PropertiesService.getScriptProperties(), bueno = props.getProperty('MAPA_SERVIDOR'), m = malos_(), ahora = Date.now();
+  const libres = OVERPASS.filter(u => !(m[u] > ahora - 30 * 60000)).sort((a, b) => (b === bueno) - (a === bueno));
+  // si todos han fallado hace poco, se prueba el que lleva más tiempo apartado
+  const url = libres[0] || OVERPASS.slice().sort((a, b) => (m[a] || 0) - (m[b] || 0))[0];
   const t = Date.now(), host = url.split('/')[2];
   let motivo;
   try {
     const r = UrlFetchApp.fetch(url, { method: 'post', payload: { data: q }, muteHttpExceptions: true });
     const txt = r.getContentText('UTF-8');
-    if (r.getResponseCode() === 200 && !/^\s*</.test(txt)) { if (url !== bueno) props.setProperty('MAPA_SERVIDOR', url); return txt; }
+    if (r.getResponseCode() === 200 && !/^\s*</.test(txt)) {
+      if (url !== bueno) props.setProperty('MAPA_SERVIDOR', url);
+      if (m[url]) { delete m[url]; props.setProperty('MAPA_MALOS', JSON.stringify(m)); }
+      return txt;
+    }
     motivo = 'respuesta ' + r.getResponseCode();
   } catch (err) { motivo = err.message; }
-  servidoresMalos_[url] = true;
+  m[url] = Date.now(); props.setProperty('MAPA_MALOS', JSON.stringify(m));
+  if (url === bueno) props.deleteProperty('MAPA_SERVIDOR');
   throw new Error(`${host} no ha respondido (${motivo}, ${Math.round((Date.now() - t) / 1000)} s)`);
 }
 function leerCsv_(txt) {
