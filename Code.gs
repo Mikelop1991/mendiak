@@ -72,6 +72,7 @@ function doPost(e) {
 function aplicar_(op) {
   const hoja = SpreadsheetApp.getActive().getSheetByName(HOJA_SALIDAS);
   const ahora = new Date();
+  if (op.accion === 'coords') return guardarCoords_(op.filas);
   if (op.accion === 'crear') {
     const s = limpiar_(op.salida);
     // si ya existe (reintento sin conexión), no se duplica
@@ -213,7 +214,6 @@ function excelSiHayCambios() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('CAMBIOS') === '1') {
     generarExcel(); props.setProperty('CAMBIOS', '0');
-    try { buscarCoordenadas_(120000); } catch (err) { Logger.log('Mapa: ' + err.message); }   // montes nuevos para el mapa (2 min como mucho)
   }
 }
 function excelInfo_() {
@@ -338,83 +338,16 @@ function fechaSerie_(v) {
 }
 
 /* ====================== Mapa: coordenadas de cada monte ======================
-   La app pinta en un mapa los montes subidos. Las coordenadas se buscan en OpenStreetMap
-   (buscador Nominatim, monte a monte) cruzando el nombre con la cota anotada, y se guardan
-   en la hoja «Coordenadas», donde se pueden revisar y corregir a mano:
+   La app pinta en un mapa los montes subidos. Las coordenadas las busca la propia app, desde el
+   navegador, en OpenStreetMap (los servidores de mapas no dejan entrar a los de Google), cruzando
+   el nombre con la cota anotada, y las manda aquí. Se guardan en la hoja «Coordenadas»,
+   donde se pueden revisar y corregir a mano:
      · ESTADO «ok»: nombre y altitud cuadran.            · «revisar»: conviene mirarlo (enlace VER).
-     · «no encontrado»: no sale en el mapa.              · «manual»: puesto a mano; el script no lo toca.
+     · «no encontrado»: no sale en el mapa.              · «manual»: puesto a mano.
    Para corregir uno: pon LATITUD y LONGITUD buenas y escribe «manual» en ESTADO.
-   La primera vez, ejecuta buscarCoordenadas() a mano. Va por partes (unos 150 montes por vuelta):
-   si no le da tiempo a todo, se programa sola para seguir al minuto siguiente, hasta acabar.
-   Después, los montes nuevos se buscan solos cada hora junto con el Excel. */
+   Para volver a buscar los «no encontrado»: ejecuta reintentarNoEncontrados() y abre el mapa en la app. */
 const HOJA_COORDS = 'Coordenadas';
-const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 
-/** Busca las coordenadas de los montes que aún no están en la hoja «Coordenadas». Se puede ejecutar a mano. */
-function buscarCoordenadas() { return buscarCoordenadas_(4.5 * 60000); }
-
-/** Trabaja como mucho «limite» milisegundos (Google corta a los 6 minutos); si no acaba, sigue en un minuto. */
-function buscarCoordenadas_(limite) {
-  const t0 = Date.now(), quedaTiempo = () => Date.now() - t0 < limite - 60000;   // cada petición, con margen de sobra
-  const props = PropertiesService.getScriptProperties();
-  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'buscarCoordenadas').forEach(t => ScriptApp.deleteTrigger(t));
-  const hoja = hojaCoords_();
-  const hechos = new Set(hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues().map(r => normal_(r[0])) : []);
-  let faltan = cumbresConCota_().filter(c => !hechos.has(normal_(c.nombre)));
-  if (!faltan.length) { props.deleteProperty('MAPA_FALLOS'); Logger.log('Todos los montes tienen ya su fila en «Coordenadas».'); return 0; }
-  Logger.log('Montes por situar: ' + faltan.length);
-  let situados = 0, hechosAhora = 0, error = '';
-  const filas = [];
-  for (const c of faltan) {
-    if (!quedaTiempo()) break;
-    let r;
-    try { r = elegir_(c, buscarNombre_(c.nombre), true); }
-    catch (err) { error = err.message; break; }   // Nominatim no responde o no deja: se sigue en la próxima vuelta
-    filas.push(r ? filaCoords_(c, r) : [c.nombre, '', '', '', '', 'no encontrado', c.cota || '']);
-    if (r) situados++;
-    hechosAhora++;
-    if (filas.length >= 20) escribirCoords_(hoja, filas.splice(0));   // se guarda por tandas: lo hecho no se pierde
-    Utilities.sleep(1100);   // norma de Nominatim: como mucho una petición por segundo
-  }
-  escribirCoords_(hoja, filas);
-  if (situados) subirVersion_();
-  faltan = faltan.slice(hechosAhora);
-  if (error) Logger.log('OpenStreetMap: ' + error);
-
-  if (faltan.length) {
-    // si no responde en varias vueltas seguidas, se deja para la revisión de cada hora
-    const fallos = hechosAhora ? 0 : +(props.getProperty('MAPA_FALLOS') || 0) + 1;
-    props.setProperty('MAPA_FALLOS', String(fallos));
-    if (fallos >= 5) { props.deleteProperty('MAPA_FALLOS'); Logger.log(`OpenStreetMap no responde. Quedan ${faltan.length}: se reintentará en la revisión de cada hora o al ejecutarlo a mano.`); return situados; }
-    ScriptApp.newTrigger('buscarCoordenadas').timeBased().after(60000).create();
-    Logger.log(`En esta vuelta: ${hechosAhora} montes buscados, ${situados} situados. Quedan ${faltan.length}: sigo solo dentro de un minuto, no hace falta hacer nada.`);
-    return situados;
-  }
-  props.deleteProperty('MAPA_FALLOS');
-  const v = hoja.getLastRow() > 1 ? hoja.getRange(2, 6, hoja.getLastRow() - 1, 1).getValues().map(r => r[0]) : [];
-  const n = e => v.filter(x => x === e).length;
-  Logger.log(`Listo: ${n('ok')} bien, ${n('revisar')} para revisar, ${n('no encontrado')} sin encontrar, ${n('manual')} a mano.`);
-  return situados;
-}
-function filaCoords_(c, r) { return [c.nombre, r.lat, r.lon, r.ele || '', r.nombre, r.estado, c.cota || '']; }
-function escribirCoords_(hoja, filas) {
-  if (!filas.length) return;
-  const ini = hoja.getLastRow() + 1;
-  hoja.getRange(ini, 1, filas.length, 7).setValues(filas);
-  hoja.getRange(ini, 8, filas.length, 1).setFormulas(filas.map((f, i) => [`=IF(B${ini + i}="","",HYPERLINK("https://www.openstreetmap.org/?mlat="&B${ini + i}&"&mlon="&C${ini + i}&"#map=15/"&B${ini + i}&"/"&C${ini + i},"VER"))`]));
-  SpreadsheetApp.flush();
-}
-/** Quita los «no encontrado» y vuelve a buscar (por si se ha corregido el nombre o falló la conexión). */
-function reintentarNoEncontrados() {
-  const hoja = hojaCoords_(); const n = hoja.getLastRow() - 1;
-  if (n > 0) {
-    const filas = hoja.getRange(2, 1, n, 7).getValues().filter(r => r[5] !== 'no encontrado');
-    hoja.getRange(2, 1, n, 8).clearContent();
-    escribirCoords_(hoja, filas);
-  }
-  ['MAPA_FALLOS', 'MAPA_ZONA', 'MAPA_FUERA', 'MAPA_HECHO', 'MAPA_MALOS', 'MAPA_SERVIDOR'].forEach(k => PropertiesService.getScriptProperties().deleteProperty(k));
-  buscarCoordenadas();
-}
 function hojaCoords_() {
   const ss = SpreadsheetApp.getActive();
   let h = ss.getSheetByName(HOJA_COORDS);
@@ -425,80 +358,45 @@ function hojaCoords_() {
   }
   return h;
 }
-/** Lo que la app necesita: [monte, lat, lon] de los que tienen coordenadas. */
+/** Lo que la app necesita: [monte, lat, lon, estado] de todos (también los no encontrados, para no buscarlos otra vez). */
 function leerCoords_() {
   const h = SpreadsheetApp.getActive().getSheetByName(HOJA_COORDS);
   if (!h || h.getLastRow() < 2) return [];
-  return h.getRange(2, 1, h.getLastRow() - 1, 6).getValues()
-    .filter(r => r[0] !== '' && r[1] !== '' && r[2] !== '' && r[5] !== 'no encontrado')
-    .map(r => [String(r[0]), Number(r[1]), Number(r[2])]);
+  return h.getRange(2, 1, h.getLastRow() - 1, 6).getValues().filter(r => r[0] !== '')
+    .map(r => [String(r[0]), r[1] === '' ? null : Number(r[1]), r[2] === '' ? null : Number(r[2]), String(r[5] || '')]);
 }
-/** Cada monte principal (como lo agrupa la app) con su cota más repetida. */
-function cumbresConCota_() {
-  const alias = new Map(leerListas_().aliasMonte.map(p => [normal_(p[0]), String(p[1]).toUpperCase()]));
-  const seps = [',', ' Y ', ' E ', ' O ', ' CON ', ' EN BICI', '(', '-'];
-  const m = new Map();
-  leerSalidas_().forEach(f => {
-    const c = String(f[3] || '').toUpperCase().trim(); if (!c) return;
-    let cut = c.length; seps.forEach(s => { const i = c.indexOf(s); if (i > 0 && i < cut) cut = i; });
-    const raw = c.slice(0, cut).trim(); const nombre = alias.get(normal_(raw)) || raw;
-    const e = m.get(nombre) || { nombre: nombre, cotas: {} };
-    const cota = primeraCota_(f[6]); if (cota) e.cotas[cota] = (e.cotas[cota] || 0) + 1;
-    m.set(nombre, e);
+/** Guarda lo que manda la app: [monte, lat, lon, altitud, nombre en el mapa, estado, cota]. No toca los que ya están. */
+function guardarCoords_(filas) {
+  if (!Array.isArray(filas) || !filas.length) return { accion: 'coords', n: 0 };
+  const hoja = hojaCoords_();
+  const ya = new Set(hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues().map(r => normal_(r[0])) : []);
+  const num = (x, a, b) => { const n = Number(x); return x === '' || x === null || !isFinite(n) || n < a || n > b ? '' : n; };
+  const nuevas = [];
+  filas.forEach(f => {
+    if (!Array.isArray(f) || !String(f[0] || '').trim()) return;
+    const k = normal_(f[0]); if (ya.has(k)) return; ya.add(k);
+    const lat = num(f[1], -90, 90), lon = num(f[2], -180, 180);
+    const estado = lat === '' || lon === '' ? 'no encontrado' : (['ok', 'revisar'].includes(f[5]) ? f[5] : 'revisar');
+    nuevas.push([String(f[0]).trim().slice(0, 200), lat, lon, num(f[3], 0, 9000), String(f[4] || '').slice(0, 200), estado, num(f[6], 0, 9000)]);
   });
-  return [...m.values()].map(e => {
-    const l = Object.keys(e.cotas).sort((a, b) => e.cotas[b] - e.cotas[a]);
-    return { nombre: e.nombre, cota: l.length ? +l[0] : null };
-  });
+  if (!nuevas.length) return { accion: 'coords', n: 0 };
+  const ini = hoja.getLastRow() + 1;
+  hoja.getRange(ini, 1, nuevas.length, 7).setValues(nuevas);
+  hoja.getRange(ini, 8, nuevas.length, 1).setFormulas(nuevas.map((f, i) => [`=IF(B${ini + i}="","",HYPERLINK("https://www.openstreetmap.org/?mlat="&B${ini + i}&"&mlon="&C${ini + i}&"#map=15/"&B${ini + i}&"/"&C${ini + i},"VER"))`]));
+  return { accion: 'coords', n: nuevas.length };
 }
-function primeraCota_(v) {
-  if (v === '' || v == null) return null;
-  if (typeof v === 'number') { const n = Math.trunc(v); return n >= 100 && n < 9000 ? n : null; }
-  const n = parseInt(String(v).split(/[^\d.]+/)[0].replace(/\./g, ''), 10);
-  return n >= 100 && n < 9000 ? n : null;
+/** Borra los «no encontrado» para que la app los vuelva a buscar la próxima vez que se abra el mapa. */
+function reintentarNoEncontrados() {
+  const hoja = hojaCoords_(); const n = hoja.getLastRow() - 1; if (n < 1) return;
+  const v = hoja.getRange(2, 1, n, 7).getValues();
+  const quedan = v.filter(r => r[5] !== 'no encontrado');
+  hoja.getRange(2, 1, n, 8).clearContent();
+  if (quedan.length) {
+    hoja.getRange(2, 1, quedan.length, 7).setValues(quedan);
+    hoja.getRange(2, 8, quedan.length, 1).setFormulas(quedan.map((f, i) => [`=IF(B${2 + i}="","",HYPERLINK("https://www.openstreetmap.org/?mlat="&B${2 + i}&"&mlon="&C${2 + i}&"#map=15/"&B${2 + i}&"/"&C${2 + i},"VER"))`]));
+  }
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'buscarCoordenadas').forEach(t => ScriptApp.deleteTrigger(t));   // restos de la versión anterior
+  subirVersion_();
+  Logger.log(`Borrados ${v.length - quedan.length} «no encontrado». Abre el mapa en la app para buscarlos otra vez.`);
 }
 function normal_(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
-function proper_(s) { return String(s || '').toLowerCase().replace(/(^|[\s\-'(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()); }
-/** Clave para comparar nombres escritos de formas distintas: Aitzkorri/Aizkorri, Ezkaba/Ezcaba, Pico de Anie/Anie… */
-function clave_(s) {
-  let t = normal_(s).replace(/[’'`]/g, ' ').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
-  const gen = /^(pico|pic|picu|punta|pena|monte|mont|mendi|alto|cerro|tuca|tuc|tossal|tozal|cima|cumbre|puy|soum|tuca|la|el|los|las|de|del|d|l|le|du|des)\s+/;
-  for (let i = 0; i < 4 && gen.test(t); i++) t = t.replace(gen, '');
-  return t.replace(/\s+/g, '')
-    .replace(/tx/g, 'ch').replace(/tz/g, 'z').replace(/ts/g, 's').replace(/qu/g, 'c').replace(/k/g, 'c')
-    .replace(/gu(?=[ei])/g, 'g').replace(/mb/g, 'nb').replace(/v/g, 'b').replace(/y/g, 'i').replace(/h/g, '').replace(/z/g, 's')
-    .replace(/(.)\1+/g, '$1');
-}
-/** Pregunta a OpenStreetMap (Nominatim) por un monte: cumbres con ese nombre, dando preferencia a la península y el Pirineo. */
-function buscarNombre_(nombre) {
-  const q = ['q=' + encodeURIComponent(proper_(nombre)), 'format=jsonv2', 'limit=15', 'layer=natural', 'extratags=1', 'namedetails=1',
-             'accept-language=es', 'viewbox=-9.5,44.2,4.5,39.5'].join('&');
-  const r = UrlFetchApp.fetch(NOMINATIM + '?' + q, { muteHttpExceptions: true, headers: { Referer: 'https://mikelop1991.github.io/mendiak/' } });
-  if (r.getResponseCode() !== 200) throw new Error(`Nominatim respondió ${r.getResponseCode()}`);
-  let l; try { l = JSON.parse(r.getContentText('UTF-8')); } catch (e) { throw new Error('Nominatim devolvió algo que no es una respuesta'); }
-  return l.filter(x => /^(peak|volcano|hill|ridge|mountain_range|saddle)$/.test(x.type)).map(x => {
-    const nd = x.namedetails || {}, et = x.extratags || {};
-    const nombres = [x.name].concat(Object.keys(nd).filter(k => /^(name|name:(eu|es|fr|ca|an|oc)|alt_name|official_name|loc_name|old_name)$/.test(k)).map(k => nd[k]))
-      .filter(Boolean).reduce((a, n) => a.concat(String(n).split(/[\/;,]|\(|\)/).map(t => t.trim()).filter(Boolean)), []);
-    return { lat: +x.lat, lon: +x.lon, ele: parseInt(String(et.ele || '').replace(',', '.'), 10) || null, nombre: x.name || nombres[0] || '', nombres: nombres, tipo: x.type };
-  }).filter(p => isFinite(p.lat) && isFinite(p.lon) && p.nombres.length);
-}
-/** De los resultados, el que se llama igual y tiene la altitud más parecida a la anotada.
-    Si ninguno se llama exactamente igual, se acepta (para revisar) una cumbre de altitud casi igual. */
-function elegir_(c, cands, flexible) {
-  const k = clave_(c.nombre);
-  const dif = p => (c.cota && p.ele) ? Math.abs(p.ele - c.cota) : null;
-  const orden = l => l.slice().sort((a, b) => (dif(a) ?? 9999) - (dif(b) ?? 9999) || (a.tipo !== 'peak') - (b.tipo !== 'peak'));
-  const iguales = cands.filter(p => p.nombres.some(n => clave_(n) === k));
-  if (iguales.length) {
-    const p = orden(iguales)[0], d = dif(p);
-    const ok = (d !== null ? d <= 60 : iguales.length === 1) && p.tipo === 'peak';   // sin cota: bien si es el único
-    return punto_(p, ok ? 'ok' : 'revisar');
-  }
-  if (flexible && c.cota) {
-    const cerca = orden(cands.filter(p => p.tipo === 'peak' && dif(p) !== null && dif(p) <= 30));
-    if (cerca.length) return punto_(cerca[0], 'revisar');
-  }
-  return null;
-}
-function punto_(p, estado) { return { lat: Math.round(p.lat * 1e5) / 1e5, lon: Math.round(p.lon * 1e5) / 1e5, ele: p.ele, nombre: p.nombre, estado: estado }; }

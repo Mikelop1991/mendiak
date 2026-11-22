@@ -514,6 +514,13 @@ html[data-vt="atras"]::view-transition-new(contenido) { animation-name: vt-entra
 .pop b { font-size: 17px; }
 .pop span { color: #56647d; }
 .pop button { margin-top: 8px; border: 0; border-radius: 10px; padding: 10px 12px; font: inherit; font-weight: 700; background: #2d6fc4; color: #fff; cursor: pointer; }
+
+.situar { margin: 0 0 12px; padding: 14px 16px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 8px; font-size: 15px; }
+.situar b { font-size: 16px; }
+.situar span { color: var(--muted); }
+.situar .btn { justify-self: start; border: 0; border-radius: 12px; padding: 11px 18px; font: inherit; font-weight: 700; background: var(--fir-2); color: var(--fir-ink); cursor: pointer; min-height: 44px; }
+.situar .barra { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.situar .barra i { display: block; height: 100%; background: var(--fir-2); border-radius: 99px; transition: width .3s; }
 </style>
 </head>
 <body>
@@ -718,6 +725,10 @@ function aplicarLocal(op) {
   if (op.accion === 'crear' && !S.salidas.some(x => x.id === op.salida.id)) S.salidas.push(enriquecer(Object.assign({ _local: true }, op.salida)));
   if (op.accion === 'editar') S.salidas = S.salidas.map(x => x.id === op.salida.id ? enriquecer(Object.assign({ _local: true }, op.salida)) : x);
   if (op.accion === 'borrar') S.salidas = S.salidas.filter(x => String(x.id) !== String(op.id));
+  if (op.accion === 'coords') {
+    const ya = new Set((S.coords || []).map(c => sinTildes(c[0])));
+    S.coords = (S.coords || []).concat(op.filas.filter(f => !ya.has(sinTildes(f[0]))).map(f => [f[0], f[1] === '' ? null : f[1], f[2] === '' ? null : f[2], f[5]]));
+  }
 }
 async function sincronizar(mostrar) {
   if (S.demo || !S.cfg) { pintarEstado(); return; }
@@ -1215,30 +1226,112 @@ function ajustarMapa() {
   const h = Math.max(300, Math.min(640, innerHeight - (el.getBoundingClientRect().top + scrollY) - abajo - 40));
   if (Math.abs(el.offsetHeight - h) > 4) { el.style.height = h + 'px'; mapa.invalidateSize(); }
 }
+/* ---- Situar los montes en el mapa: la app pregunta a OpenStreetMap (Nominatim) desde el navegador,
+   monte a monte, cruzando el nombre con la cota anotada; lo encontrado se guarda en la hoja «Coordenadas» ---- */
+const situando = { activo: false, hechos: 0, total: 0, situados: 0, error: '' };
+let ultimaListaMapa = [];
+function claveMonte(t) {   // Aitzkorri = Aizkorri, Ezkaba = Ezcaba, «Pico de Anie» = Anie…
+  t = sinTildes(t).replace(/[’'`]/g, ' ').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const gen = /^(pico|pic|picu|punta|pena|monte|mont|mendi|alto|cerro|tuca|tuc|tossal|tozal|cima|cumbre|puy|soum|la|el|los|las|de|del|d|l|le|du|des)\s+/;
+  for (let i = 0; i < 4 && gen.test(t); i++) t = t.replace(gen, '');
+  return t.replace(/\s+/g, '').replace(/tx/g, 'ch').replace(/tz/g, 'z').replace(/ts/g, 's').replace(/qu/g, 'c').replace(/k/g, 'c')
+    .replace(/gu(?=[ei])/g, 'g').replace(/mb/g, 'nb').replace(/v/g, 'b').replace(/y/g, 'i').replace(/h/g, '').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
+}
+function pendientesMapa() {
+  const ya = new Set((S.coords || []).map(c => sinTildes(c[0])));
+  return [...REF.values()].filter(r => r.nombre && !ya.has(sinTildes(r.nombre)));
+}
+async function buscarEnMapa(nombre) {
+  const q = new URLSearchParams({ q: proper(nombre), format: 'jsonv2', limit: '15', layer: 'natural', extratags: '1', namedetails: '1', 'accept-language': 'es', viewbox: '-9.5,44.2,4.5,39.5' });
+  const r = await fetch('https://nominatim.openstreetmap.org/search?' + q, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error('respuesta ' + r.status);
+  return (await r.json()).filter(x => /^(peak|volcano|hill|ridge|mountain_range|saddle)$/.test(x.type)).map(x => {
+    const nd = x.namedetails || {};
+    const nombres = [x.name].concat(Object.keys(nd).filter(k => /^(name|name:(eu|es|fr|ca|an|oc)|alt_name|official_name|loc_name|old_name)$/.test(k)).map(k => nd[k]))
+      .filter(Boolean).flatMap(n => String(n).split(/[\/;,()]/).map(t => t.trim()).filter(Boolean));
+    return { lat: +x.lat, lon: +x.lon, ele: parseInt(String((x.extratags || {}).ele || '').replace(',', '.'), 10) || null, nombre: x.name || nombres[0] || '', nombres, tipo: x.type };
+  }).filter(p => isFinite(p.lat) && isFinite(p.lon) && p.nombres.length);
+}
+/** El que se llama igual con la altitud más parecida; si ninguno se llama igual, una cumbre de altitud casi igual (para revisar). */
+function elegirPunto(nombre, cota, cands) {
+  const k = claveMonte(nombre), dif = p => (cota && p.ele) ? Math.abs(p.ele - cota) : null;
+  const orden = l => l.slice().sort((a, b) => (dif(a) ?? 9999) - (dif(b) ?? 9999) || (a.tipo !== 'peak') - (b.tipo !== 'peak'));
+  const iguales = cands.filter(p => p.nombres.some(n => claveMonte(n) === k));
+  let p = null, estado = 'revisar';
+  if (iguales.length) { p = orden(iguales)[0]; const d = dif(p); if ((d !== null ? d <= 60 : iguales.length === 1) && p.tipo === 'peak') estado = 'ok'; }
+  else if (cota) p = orden(cands.filter(x => x.tipo === 'peak' && dif(x) !== null && dif(x) <= 30))[0] || null;
+  return p ? [nombre, Math.round(p.lat * 1e5) / 1e5, Math.round(p.lon * 1e5) / 1e5, p.ele || '', p.nombre, estado, cota || ''] : [nombre, '', '', '', '', 'no encontrado', cota || ''];
+}
+async function situarMontes() {
+  if (situando.activo || S.demo) return;
+  const lista = pendientesMapa(); if (!lista.length) return;
+  Object.assign(situando, { activo: true, hechos: 0, total: lista.length, situados: 0, error: '' });
+  let tanda = [];
+  const enviar = () => { if (tanda.length) { encolar({ accion: 'coords', filas: tanda }); tanda = []; } };
+  pintarSituar();
+  for (const r of lista) {
+    if (!$('#situar')) break;   // se ha salido del mapa: se sigue otro día donde se dejó
+    let fila;
+    try { fila = elegirPunto(r.nombre, r.cota || r.alt || null, await buscarEnMapa(r.nombre)); }
+    catch (e) { situando.error = 'OpenStreetMap no responde ahora. Prueba otra vez más tarde.'; break; }
+    tanda.push(fila); situando.hechos++;
+    if (fila[1] !== '') situando.situados++;
+    aplicarLocal({ accion: 'coords', filas: [fila] });
+    if (tanda.length >= 10) { enviar(); if (mapa) mapa._encuadrar = true; }   // cada 10, se guardan y se reencuadra el mapa
+    if (fila[1] !== '' && $('#mapa')) pintarMapa(ultimaListaMapa); else pintarSituar();
+    await new Promise(ok => setTimeout(ok, 1100));   // norma de OpenStreetMap: como mucho una búsqueda por segundo
+  }
+  enviar();
+  situando.activo = false;
+  if (mapa) mapa._encuadrar = true;
+  if ($('#mapa')) pintarMapa(ultimaListaMapa);
+  pintarSituar();
+}
+function pintarSituar() {
+  const box = $('#situar'); if (!box) return;
+  const falta = pendientesMapa().length;
+  if (situando.activo) {
+    const pc = Math.round(100 * situando.hechos / Math.max(1, situando.total));
+    box.innerHTML = `<b>Situando montes en el mapa… ${situando.hechos} de ${situando.total}</b>
+      <div class="barra" role="progressbar" aria-valuenow="${pc}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pc}%"></i></div>
+      <span>${situando.situados} encontrados. Deja esta pantalla abierta; si sales, sigue donde lo dejó la próxima vez.</span>`;
+    if (box.hidden) { box.hidden = false; ajustarMapa(); }
+    return;
+  }
+  if (!falta || S.demo) { const h = box.hidden; box.hidden = !situando.error; box.innerHTML = situando.error ? `<span>${esc(situando.error)}</span>` : ''; if (h !== box.hidden) ajustarMapa(); return; }
+  const min = Math.max(1, Math.round(falta * 1.6 / 60));
+  const h = box.hidden; box.hidden = false;
+  setTimeout(() => { if (h) ajustarMapa(); });
+  box.innerHTML = `<b>${falta === 1 ? 'Falta 1 monte' : `Faltan ${falta} montes`} por situar en el mapa</b>
+    <span>${situando.error ? esc(situando.error) + ' ' : ''}Se buscan en OpenStreetMap, uno por segundo: ${min === 1 ? 'un minuto' : `unos ${min} minutos`} con esta pantalla abierta.</span>
+    <button type="button" class="btn" id="situarYa">Situarlos ahora</button>`;
+  $('#situarYa').onclick = situarMontes;
+}
+
 async function pintarMapa(l) {
   const box = $('#ml'); if (!box) return;
-  const donde = new Map((S.coords || []).map(([n, la, lo]) => [sinTildes(n), [la, lo]]));
+  ultimaListaMapa = l;
+  const donde = new Map((S.coords || []).filter(c => c[1] != null && c[2] != null).map(([n, la, lo]) => [sinTildes(n), [la, lo]]));
   const pts = l.map(r => ({ r, c: donde.get(sinTildes(r.nombre)) })).filter(x => x.c);
   const sinSitio = l.length - pts.length;
   const nota = `${pts.length} ${pts.length === 1 ? 'monte' : 'montes'} en el mapa${sinSitio ? ` · ${sinSitio} sin situar (rutas, travesías o nombres que el mapa no conoce)` : ''}`;
-  if (!(S.coords || []).length) {
-    box.innerHTML = `<div class="empty">${VACIO_SVG}<b>El mapa aún no tiene los montes situados</b><span>Se preparan una vez desde la hoja de Google (función «buscarCoordenadas»). Luego aparecen aquí solos.</span></div>`;
-    return;
-  }
   if (!$('#mapa')) {
     if (mapa) { mapa.remove(); mapa = null; }
-    box.innerHTML = `<div class="mapa-wrap"><div id="mapa" class="mapa" aria-label="Mapa de los montes"></div>
+    box.innerHTML = `<div class="situar" id="situar" hidden></div><div class="mapa-wrap"><div id="mapa" class="mapa" aria-label="Mapa de los montes"></div>
       <div class="mapa-ley" aria-label="Colores por altitud">${['< 1.000', '1.000', '1.500', '2.000', '3.000 +'].map((t, i) => `<span><i style="background:var(--t${i + 1})"></i>${t}</span>`).join('')}</div>
       <p class="mapa-nota" id="mapaNota"></p></div>`;
     try { await cargarLeaflet(); } catch (e) { box.innerHTML = `<div class="empty">${VACIO_SVG}<b>El mapa necesita conexión</b><span>Vuelve a intentarlo cuando haya internet.</span></div>`; return; }
     if (!$('#mapa')) return;   // se cambió de pantalla mientras cargaba
     mapa = L.map('mapa', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 17, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://opentopomap.org">OpenTopoMap</a>' }).addTo(mapa);
+    mapa.setView([42.8, -1.65], 8);   // Navarra, mientras no haya montes situados
     capaMontes = L.layerGroup().addTo(mapa);
     mapa.on('popupopen', e => { const b = e.popup.getElement().querySelector('[data-c]'); if (b) b.onclick = () => irA('buscar', proper(b.dataset.c)); });
     mapa._encuadrar = true;
   }
   $('#mapaNota').textContent = nota;
+  pintarSituar();
+  if (!situando.activo && !S.demo && pendientesMapa().length && pendientesMapa().length <= 5) situarMontes();   // los nuevos, solos
   capaMontes.clearLayers();
   const raiz = getComputedStyle(document.documentElement);
   // los más subidos encima
