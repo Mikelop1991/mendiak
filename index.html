@@ -498,10 +498,14 @@ html[data-vt="atras"]::view-transition-new(contenido) { animation-name: vt-entra
 }
 
 /* ===== Mis montes: lista o mapa ===== */
-.vista-sel { display: inline-flex; gap: 4px; padding: 4px; margin: 2px 0 12px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
-.vista-sel button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: 16px; padding: 9px 22px; border-radius: 999px; cursor: pointer; min-height: 44px; }
-.vista-sel button.on { background: var(--fir-2); color: var(--fir-ink); box-shadow: 0 2px 8px rgb(0 0 0 / .15); }
+/* selector Lista / Mapa: dos mitades iguales, a todo el ancho en el móvil */
+.vista-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 100%; max-width: 460px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); box-sizing: border-box; }
+.vista-sel button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: 16px; padding: 10px 12px; border-radius: 999px; cursor: pointer; min-height: 46px; transition: background .2s, color .2s; -webkit-tap-highlight-color: transparent; }
+.vista-sel button svg { width: 20px; height: 20px; flex: none; }
+.vista-sel button.on { background: var(--fir-2); color: var(--fir-ink); box-shadow: 0 2px 8px rgb(0 0 0 / .18); }
+.vista-sel button:not(.on):active { background: var(--line); }
 .mapa-wrap { margin-top: 4px; position: relative; }
+.mlist > .mapa-wrap, .mlist > .situar, .mlist > .empty { grid-column: 1 / -1; }   /* en el ordenador, la lista va a dos columnas: el mapa ocupa las dos */
 .mapa-ley { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 4px 0; font-size: 14px; color: var(--muted); }
 .mapa-ley span { display: inline-flex; align-items: center; gap: 5px; }
 .mapa-ley i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
@@ -1192,7 +1196,8 @@ function vMontes() {
     <div class="panel-head"><h2>Mis montes</h2><span class="muted">${all.length} distintos</span></div>
     <div class="search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="mq" type="search" placeholder="Filtrar por monte o sierra…" aria-label="Filtrar montes" value="${esc(montesQ)}"></div>
-    <div class="vista-sel" role="tablist" aria-label="Cómo ver los montes">${[['lista', 'Lista'], ['mapa', 'Mapa']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${montesVista === k}" class="${montesVista === k ? 'on' : ''}" data-v="${k}">${t}</button>`).join('')}</div>
+    <div class="vista-sel" role="tablist" aria-label="Cómo ver los montes">${[['lista', 'Lista', '<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/>'],
+      ['mapa', 'Mapa', '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>']].map(([k, t, ico]) => `<button type="button" role="tab" aria-selected="${montesVista === k}" class="${montesVista === k ? 'on' : ''}" data-v="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico}</svg>${t}</button>`).join('')}</div>
     <div class="chips" ${montesVista === 'mapa' ? 'hidden' : ''}>${[['veces', 'Más subidos'], ['ultima', 'Recientes'], ['nombre', 'A–Z'], ['alt', 'Más altos']].map(([k, t]) => `<button type="button" class="chip ${montesOrden === k ? 'on' : ''}" data-o="${k}">${t}</button>`).join('')}</div>
     <div class="legend" ${montesVista === 'mapa' ? 'hidden' : ''}>${TRAMOS.map(([n, t]) => `<span><i style="background:var(--t${n})"></i>${t}</span>`).join('')}</div>
     <div id="ml" class="mlist"></div></div>`;
