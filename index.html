@@ -496,6 +496,24 @@ html[data-vt="atras"]::view-transition-new(contenido) { animation-name: vt-entra
   .okfx svg, .okfx path, .toast:not([hidden]) { animation: none; stroke-dashoffset: 0; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* ===== Mis montes: lista o mapa ===== */
+.vista-sel { display: inline-flex; gap: 4px; padding: 4px; margin: 2px 0 12px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.vista-sel button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: 16px; padding: 9px 22px; border-radius: 999px; cursor: pointer; min-height: 44px; }
+.vista-sel button.on { background: var(--fir-2); color: var(--fir-ink); box-shadow: 0 2px 8px rgb(0 0 0 / .15); }
+.mapa-wrap { margin-top: 4px; position: relative; }
+.mapa-ley { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 4px 0; font-size: 14px; color: var(--muted); }
+.mapa-ley span { display: inline-flex; align-items: center; gap: 5px; }
+.mapa-ley i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.mapa { height: clamp(320px, calc(100svh - 340px), 640px); border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); box-shadow: 0 8px 24px -14px rgb(0 0 0 / .35); }
+.mapa-nota { margin: 10px 4px 0; color: var(--muted); font-size: 14px; }
+.leaflet-container { font: inherit; }
+.leaflet-popup-content-wrapper { border-radius: 14px; }
+.leaflet-popup-content { margin: 12px 14px; }
+.pop { display: grid; gap: 3px; min-width: 170px; font-size: 15px; color: #1b2433; }
+.pop b { font-size: 17px; }
+.pop span { color: #56647d; }
+.pop button { margin-top: 8px; border: 0; border-radius: 10px; padding: 10px 12px; font: inherit; font-weight: 700; background: #2d6fc4; color: #fff; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -715,10 +733,10 @@ async function sincronizar(mostrar) {
     if (igual) j = Object.assign(store.get('cache', {}), { version: j.version });
     else { j.t = Date.now(); }
     S.version = j.version; S.descarga = j.t;
-    S.listas = j.listas; prepararListas(); S.excel = j.excel || null;
+    S.listas = j.listas; prepararListas(); S.excel = j.excel || null; S.coords = j.coords || S.coords || [];
     S.salidas = j.salidas.map(deFila);
     S.pend.forEach(aplicarLocal);   // lo apuntado mientras se descargaban los datos
-    store.set('cache', Object.assign({ salidas: j.salidas, listas: j.listas, hora: j.hora, excel: j.excel || null }, { version: j.version, t: j.t }));
+    store.set('cache', Object.assign({ salidas: j.salidas, listas: j.listas, hora: j.hora, excel: j.excel || null, coords: S.coords }, { version: j.version, t: j.t }));
     S.ultimaSync = new Date(); S.online = true; recalcular();
     if (mostrar) toast('Datos al día');
     if (igual && !mostrar) pintarEstado(); else render();   // sin cambios no se repinta: no molesta si está escribiendo
@@ -1155,29 +1173,96 @@ function vForm(ed) {
 }
 
 /* ---- Montes ---- */
-let montesOrden = 'veces', montesQ = '';
+let montesOrden = 'veces', montesQ = '', montesVista = 'lista';
 function vMontes() {
+  if (mapa) { mapa.remove(); mapa = null; }
   const all = [...REF.values()].filter(r => r.nombre);
   $('#app').innerHTML = `<div class="view">
     <div class="panel-head"><h2>Mis montes</h2><span class="muted">${all.length} distintos</span></div>
     <div class="search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="mq" type="search" placeholder="Filtrar por monte o sierra…" aria-label="Filtrar montes" value="${esc(montesQ)}"></div>
-    <div class="chips">${[['veces', 'Más subidos'], ['ultima', 'Recientes'], ['nombre', 'A–Z'], ['alt', 'Más altos']].map(([k, t]) => `<button type="button" class="chip ${montesOrden === k ? 'on' : ''}" data-o="${k}">${t}</button>`).join('')}</div>
-    <div class="legend">${TRAMOS.map(([n, t]) => `<span><i style="background:var(--t${n})"></i>${t}</span>`).join('')}</div>
+    <div class="vista-sel" role="tablist" aria-label="Cómo ver los montes">${[['lista', 'Lista'], ['mapa', 'Mapa']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${montesVista === k}" class="${montesVista === k ? 'on' : ''}" data-v="${k}">${t}</button>`).join('')}</div>
+    <div class="chips" ${montesVista === 'mapa' ? 'hidden' : ''}>${[['veces', 'Más subidos'], ['ultima', 'Recientes'], ['nombre', 'A–Z'], ['alt', 'Más altos']].map(([k, t]) => `<button type="button" class="chip ${montesOrden === k ? 'on' : ''}" data-o="${k}">${t}</button>`).join('')}</div>
+    <div class="legend" ${montesVista === 'mapa' ? 'hidden' : ''}>${TRAMOS.map(([n, t]) => `<span><i style="background:var(--t${n})"></i>${t}</span>`).join('')}</div>
     <div id="ml" class="mlist"></div></div>`;
   const pinta = () => {
     const q = sinTildes(montesQ);
     const l = all.filter(r => !q || sinTildes(r.nombre).includes(q) || sinTildes(r.sierra).includes(q));
     const by = { veces: (a, b) => b.veces - a.veces, ultima: (a, b) => (b.ultima || '').localeCompare(a.ultima || ''), nombre: (a, b) => a.nombre.localeCompare(b.nombre, 'es'), alt: (a, b) => (b.alt || 0) - (a.alt || 0) }[montesOrden];
     l.sort(by);
+    if (montesVista === 'mapa') return pintarMapa(l);
     $('#ml').innerHTML = l.slice(0, 400).map(r => `<button type="button" class="mrow" data-c="${esc(r.nombre)}" style="${tc(r.alt)}">
       <span class="band"></span><span class="n">${esc(proper(r.nombre))}</span><span class="c">${r.veces}<small>${r.veces === 1 ? 'vez' : 'veces'}</small></span>
       <span class="s">${[r.alt ? fmtN(r.alt) + ' m' : '', r.sierra, 'última ' + fCorta(r.ultima)].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('') || `<div class="empty">${VACIO_SVG}Ningún monte con ese nombre.</div>`;
     $$('.mrow').forEach(b => b.onclick = () => irA('buscar', proper(b.dataset.c)));
   };
   pinta();
-  $('#mq').addEventListener('input', e => { montesQ = e.target.value; pinta(); });
+  let deb; $('#mq').addEventListener('input', e => { montesQ = e.target.value; clearTimeout(deb); deb = setTimeout(pinta, montesVista === 'mapa' ? 300 : 0); });
   $$('[data-o]').forEach(b => b.onclick = () => { montesOrden = b.dataset.o; vMontes(); });
+  $$('[data-v]').forEach(b => b.onclick = () => { if (montesVista === b.dataset.v) return; montesVista = b.dataset.v; transicion(vMontes); });
+}
+
+/* ---- Mapa de los montes: cada punto, un monte; color por altitud (como la lista) y tamaño por veces ---- */
+let mapa = null, capaMontes = null;
+function cargarLeaflet() {
+  if (window.L) return Promise.resolve();
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css);
+  return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+}
+function ajustarMapa() {
+  const el = $('#mapa'), barra = $('nav.tabs'); if (!el || !mapa) return;
+  const abajo = barra && getComputedStyle(barra).display !== 'none' ? barra.getBoundingClientRect().height : 0;   // la barra es fija: offsetParent no sirve
+  const h = Math.max(300, Math.min(640, innerHeight - (el.getBoundingClientRect().top + scrollY) - abajo - 40));
+  if (Math.abs(el.offsetHeight - h) > 4) { el.style.height = h + 'px'; mapa.invalidateSize(); }
+}
+async function pintarMapa(l) {
+  const box = $('#ml'); if (!box) return;
+  const donde = new Map((S.coords || []).map(([n, la, lo]) => [sinTildes(n), [la, lo]]));
+  const pts = l.map(r => ({ r, c: donde.get(sinTildes(r.nombre)) })).filter(x => x.c);
+  const sinSitio = l.length - pts.length;
+  const nota = `${pts.length} ${pts.length === 1 ? 'monte' : 'montes'} en el mapa${sinSitio ? ` · ${sinSitio} sin situar (rutas, travesías o nombres que el mapa no conoce)` : ''}`;
+  if (!(S.coords || []).length) {
+    box.innerHTML = `<div class="empty">${VACIO_SVG}<b>El mapa aún no tiene los montes situados</b><span>Se preparan una vez desde la hoja de Google (función «buscarCoordenadas»). Luego aparecen aquí solos.</span></div>`;
+    return;
+  }
+  if (!$('#mapa')) {
+    if (mapa) { mapa.remove(); mapa = null; }
+    box.innerHTML = `<div class="mapa-wrap"><div id="mapa" class="mapa" aria-label="Mapa de los montes"></div>
+      <div class="mapa-ley" aria-label="Colores por altitud">${['< 1.000', '1.000', '1.500', '2.000', '3.000 +'].map((t, i) => `<span><i style="background:var(--t${i + 1})"></i>${t}</span>`).join('')}</div>
+      <p class="mapa-nota" id="mapaNota"></p></div>`;
+    try { await cargarLeaflet(); } catch (e) { box.innerHTML = `<div class="empty">${VACIO_SVG}<b>El mapa necesita conexión</b><span>Vuelve a intentarlo cuando haya internet.</span></div>`; return; }
+    if (!$('#mapa')) return;   // se cambió de pantalla mientras cargaba
+    mapa = L.map('mapa', { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 17, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://opentopomap.org">OpenTopoMap</a>' }).addTo(mapa);
+    capaMontes = L.layerGroup().addTo(mapa);
+    mapa.on('popupopen', e => { const b = e.popup.getElement().querySelector('[data-c]'); if (b) b.onclick = () => irA('buscar', proper(b.dataset.c)); });
+    mapa._encuadrar = true;
+  }
+  $('#mapaNota').textContent = nota;
+  capaMontes.clearLayers();
+  const raiz = getComputedStyle(document.documentElement);
+  // los más subidos encima
+  pts.sort((a, b) => a.r.veces - b.r.veces).forEach(({ r, c }) => {
+    const col = raiz.getPropertyValue('--t' + (tramo(r.alt) || 1)).trim() || '#2d6fc4';
+    L.circleMarker(c, { radius: 6 + Math.min(9, Math.sqrt(r.veces) * 2), color: '#fff', weight: 2, fillColor: col, fillOpacity: .92 })
+      .bindPopup(`<div class="pop"><b>${esc(proper(r.nombre))}</b><span>${[r.alt ? fmtN(r.alt) + ' m' : '', r.sierra].filter(Boolean).map(esc).join(' · ')}</span>
+        <span>${r.veces} ${r.veces === 1 ? 'vez' : 'veces'} · última ${esc(fCorta(r.ultima))}</span>
+        <button type="button" data-c="${esc(r.nombre)}">Ver salidas</button></div>`, { autoPanPaddingTopLeft: [56, 16], autoPanPadding: [16, 16] })
+      .addTo(capaMontes);
+  });
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 40)));   // que el mapa tenga ya su tamaño
+  if (!mapa) return;
+  // que el mapa quepa entero en la pantalla, por encima de la barra de abajo
+  ajustarMapa();
+  setTimeout(ajustarMapa, 450);   // otra vez al acabar la transición de pantalla, ya en su sitio
+  if (pts.length && (mapa._encuadrar || montesQ)) {
+    // encuadre en la zona de siempre: un viaje lejano (Atlas, Alpes…) no aleja todo el mapa
+    const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    const mLa = med(pts.map(p => p.c[0])), mLo = med(pts.map(p => p.c[1]));
+    const cerca = pts.filter(p => Math.abs(p.c[0] - mLa) < 2.5 && Math.abs(p.c[1] - mLo) < 3.5);
+    mapa.fitBounds(L.latLngBounds((cerca.length ? cerca : pts).map(p => p.c)), { padding: [28, 28], maxZoom: 13 });
+    mapa._encuadrar = false;
+  }
 }
 
 /* ---- Resumen ---- */
@@ -1379,7 +1464,7 @@ function transicion(fn, dir) {
   };
   const soltar = () => { ind.classList.remove('listo', 'girando'); ind.style.transform = ''; ind.style.opacity = ''; d = 0; };
   addEventListener('touchstart', e => {
-    if (e.touches.length !== 1 || ocupado || document.querySelector('.sheet')) { x0 = null; return; }
+    if (e.touches.length !== 1 || ocupado || document.querySelector('.sheet') || e.target.closest('.leaflet-container')) { x0 = null; return; }
     const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); arriba = scrollY <= 0; d = 0;
   }, { passive: true });
   addEventListener('touchmove', e => {
@@ -1415,12 +1500,12 @@ function arrancar() {
   if (window.MENDIAK_DEMO) {
     S.demo = true; $('#demoBanner').hidden = false;
     S.listas = window.MENDIAK_DEMO.listas; prepararListas();
-    S.salidas = window.MENDIAK_DEMO.salidas.map(deFila);
+    S.salidas = window.MENDIAK_DEMO.salidas.map(deFila); S.coords = window.MENDIAK_DEMO.coords || [];
   } else {
     leerConfigDeEnlace();
     S.pend = store.get('pend', []);
     const c = store.get('cache', null);
-    if (c) { S.listas = c.listas; prepararListas(); S.salidas = c.salidas.map(deFila); S.excel = c.excel || null; S.version = c.version; S.descarga = c.t; }
+    if (c) { S.listas = c.listas; prepararListas(); S.salidas = c.salidas.map(deFila); S.excel = c.excel || null; S.coords = c.coords || []; S.version = c.version; S.descarga = c.t; }
     else prepararListas();
     S.pend.forEach(aplicarLocal);
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
