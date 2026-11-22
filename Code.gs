@@ -213,7 +213,7 @@ function excelSiHayCambios() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('CAMBIOS') === '1') {
     generarExcel(); props.setProperty('CAMBIOS', '0');
-    try { buscarCoordenadas(); } catch (err) { Logger.log('Mapa: ' + err.message); }   // montes nuevos para el mapa
+    try { buscarCoordenadas_(120000); } catch (err) { Logger.log('Mapa: ' + err.message); }   // montes nuevos para el mapa (2 min como mucho)
   }
 }
 function excelInfo_() {
@@ -344,7 +344,8 @@ function fechaSerie_(v) {
      · ESTADO «ok»: nombre y altitud cuadran.            · «revisar»: conviene mirarlo (enlace VER).
      · «no encontrado»: no sale en el mapa.              · «manual»: puesto a mano; el script no lo toca.
    Para corregir uno: pon LATITUD y LONGITUD buenas y escribe «manual» en ESTADO.
-   La primera vez, ejecuta buscarCoordenadas() a mano (tarda unos minutos).
+   La primera vez, ejecuta buscarCoordenadas() a mano. Va por partes: si no le da tiempo a todo,
+   se programa sola para seguir al minuto siguiente, hasta acabar (el registro dice cuántos quedan).
    Después, los montes nuevos se buscan solos cada hora junto con el Excel. */
 const HOJA_COORDS = 'Coordenadas';
 // servidores públicos de OpenStreetMap: si uno no responde (o no deja entrar a Google), se prueba el siguiente
@@ -352,38 +353,90 @@ const OVERPASS = ['https://overpass.private.coffee/api/interpreter', 'https://ma
 // zonas donde buscar (sur, oeste, norte, este): Navarra y Euskal Herria, Pirineo, norte, Asturias y Picos, centro
 const ZONAS_MAPA = [[42.3, -3.6, 43.5, -0.7], [42.0, -0.7, 43.2, 3.4], [41.6, -4.5, 43.4, -1.6], [42.6, -7.2, 43.6, -4.3], [40.1, -5.6, 41.3, -3.2]];
 
-/** Busca las coordenadas de los montes que aún no están en la hoja «Coordenadas». */
-function buscarCoordenadas() {
+/** Busca las coordenadas de los montes que aún no están en la hoja «Coordenadas». Se puede ejecutar a mano. */
+function buscarCoordenadas() { return buscarCoordenadas_(4.5 * 60000); }
+
+/** Trabaja como mucho «limite» milisegundos (Google corta a los 6 minutos); si no acaba, sigue en un minuto. */
+function buscarCoordenadas_(limite) {
+  const t0 = Date.now(), quedaTiempo = margen => Date.now() - t0 < limite - margen;
+  const props = PropertiesService.getScriptProperties();
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'buscarCoordenadas').forEach(t => ScriptApp.deleteTrigger(t));
   const hoja = hojaCoords_();
   const hechos = new Set(hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues().map(r => normal_(r[0])) : []);
-  const faltan = cumbresConCota_().filter(c => !hechos.has(normal_(c.nombre)));
-  if (!faltan.length) { Logger.log('Todos los montes tienen ya su fila en «Coordenadas».'); return 0; }
-  Logger.log('Montes por buscar: ' + faltan.length);
-  const picos = [];
-  ZONAS_MAPA.forEach(z => { try { picos.push.apply(picos, picosEn_(z)); } catch (err) { Logger.log('Zona ' + z + ': ' + err.message); } });
-  Logger.log('Cumbres de OpenStreetMap descargadas: ' + picos.length);
-  const indice = indicePicos_(picos);
-  const t0 = Date.now(); let fuera = 0;
-  const filas = faltan.map(c => {
-    let r = elegir_(c, indice.get(clave_(c.nombre)) || []);
-    // si no está en las zonas de siempre (Alpes, Marruecos…), una búsqueda más amplia, con límite de tiempo
-    if (!r && fuera < 15 && Date.now() - t0 < 180000) { fuera++; try { r = elegir_(c, buscarFuera_(c.nombre)); } catch (err) { /* sin conexión con OSM: queda «no encontrado» */ } }
-    return r ? [c.nombre, r.lat, r.lon, r.ele || '', r.nombre, r.estado, c.cota || '']
-             : [c.nombre, '', '', '', '', 'no encontrado', c.cota || ''];
-  });
+  let faltan = cumbresConCota_().filter(c => !hechos.has(normal_(c.nombre)));
+  if (!faltan.length) { props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA'); Logger.log('Todos los montes tienen ya su fila en «Coordenadas».'); return 0; }
+  Logger.log('Montes por situar: ' + faltan.length);
+  let zona = +(props.getProperty('MAPA_ZONA') || 0), situados = 0, cortado = false;
+
+  // 1) las zonas de siempre, de una en una (cada zona: una descarga y el cruce de todos los montes que faltan)
+  while (zona < ZONAS_MAPA.length) {
+    if (!quedaTiempo(150000)) { cortado = true; break; }   // cada descarga puede tardar: solo se empieza si sobra tiempo
+    let picos;
+    try { picos = picosEn_(ZONAS_MAPA[zona]); }
+    catch (err) {
+      Logger.log(`Zona ${zona + 1}: ${err.message}`);
+      if (OVERPASS.every(u => servidoresMalos_[u])) { cortado = true; break; }
+      continue;   // se repite la zona con el siguiente servidor, si queda tiempo
+    }
+    const idx = indicePicos_(picos), filas = [];
+    faltan = faltan.filter(c => { const r = elegir_(c, idx.get(clave_(c.nombre)) || []); if (r) { filas.push(filaCoords_(c, r)); return false; } return true; });
+    escribirCoords_(hoja, filas); situados += filas.length;
+    Logger.log(`Zona ${zona + 1} de ${ZONAS_MAPA.length}: ${picos.length} cumbres en el mapa, ${filas.length} montes situados.`);
+    props.setProperty('MAPA_ZONA', String(++zona));
+  }
+
+  // 2) los que quedan y son altos (Alpes, Atlas…): búsqueda amplia, uno a uno; el resto, «no encontrado»
+  if (!cortado) {
+    let fuera = +(props.getProperty('MAPA_FUERA') || 0);
+    const filas = [];
+    for (const c of faltan) {
+      if (!quedaTiempo(40000)) { cortado = true; break; }
+      let r = null;
+      if (c.cota >= 2000 && fuera < 25) {
+        fuera++; props.setProperty('MAPA_FUERA', String(fuera));
+        try { r = elegir_(c, buscarFuera_(c.nombre)); }
+        catch (err) { Logger.log(err.message); fuera--; if (OVERPASS.every(u => servidoresMalos_[u])) { cortado = true; break; } continue; }
+      }
+      filas.push(r ? filaCoords_(c, r) : [c.nombre, '', '', '', '', 'no encontrado', c.cota || '']);
+      if (r) situados++;
+    }
+    escribirCoords_(hoja, filas);
+    faltan = faltan.slice(filas.length);
+  }
+  if (situados) subirVersion_();
+
+  if (faltan.length) {
+    // si OpenStreetMap no responde en varias vueltas seguidas, se deja para la próxima hora
+    const fallos = situados ? 0 : +(props.getProperty('MAPA_FALLOS') || 0) + 1;
+    props.setProperty('MAPA_FALLOS', String(fallos));
+    if (fallos >= 6) { props.deleteProperty('MAPA_FALLOS'); Logger.log(`OpenStreetMap no responde. Quedan ${faltan.length}: se reintentará en la revisión de cada hora o al ejecutarlo a mano.`); return situados; }
+    ScriptApp.newTrigger('buscarCoordenadas').timeBased().after(60000).create();
+    Logger.log(`Situados ahora: ${situados}. Quedan ${faltan.length}: sigo solo dentro de un minuto (no hace falta hacer nada).`);
+    return situados;
+  }
+  props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA'); props.deleteProperty('MAPA_FALLOS');
+  const v = hoja.getLastRow() > 1 ? hoja.getRange(2, 6, hoja.getLastRow() - 1, 1).getValues().map(r => r[0]) : [];
+  const n = e => v.filter(x => x === e).length;
+  Logger.log(`Listo: ${n('ok')} bien, ${n('revisar')} para revisar, ${n('no encontrado')} sin encontrar, ${n('manual')} a mano.`);
+  return situados;
+}
+function filaCoords_(c, r) { return [c.nombre, r.lat, r.lon, r.ele || '', r.nombre, r.estado, c.cota || '']; }
+function escribirCoords_(hoja, filas) {
+  if (!filas.length) return;
   const ini = hoja.getLastRow() + 1;
   hoja.getRange(ini, 1, filas.length, 7).setValues(filas);
   hoja.getRange(ini, 8, filas.length, 1).setFormulas(filas.map((f, i) => [`=IF(B${ini + i}="","",HYPERLINK("https://www.openstreetmap.org/?mlat="&B${ini + i}&"&mlon="&C${ini + i}&"#map=15/"&B${ini + i}&"/"&C${ini + i},"VER"))`]));
-  subirVersion_();
-  const n = s => filas.filter(f => f[5] === s).length;
-  Logger.log(`Listo: ${n('ok')} bien, ${n('revisar')} para revisar, ${n('no encontrado')} sin encontrar.`);
-  return filas.length;
+  SpreadsheetApp.flush();
 }
-/** Igual que buscarCoordenadas(), pero vuelve a probar los «no encontrado» (por si se ha corregido el nombre). */
+/** Quita los «no encontrado» y vuelve a buscar (por si se ha corregido el nombre o falló la conexión). */
 function reintentarNoEncontrados() {
-  const hoja = hojaCoords_(); const n = hoja.getLastRow() - 1; if (n < 1) return;
-  const v = hoja.getRange(2, 6, n, 1).getValues();
-  for (let i = n - 1; i >= 0; i--) if (v[i][0] === 'no encontrado') hoja.deleteRow(i + 2);
+  const hoja = hojaCoords_(); const n = hoja.getLastRow() - 1;
+  if (n > 0) {
+    const filas = hoja.getRange(2, 1, n, 7).getValues().filter(r => r[5] !== 'no encontrado');
+    hoja.getRange(2, 1, n, 8).clearContent();
+    escribirCoords_(hoja, filas);
+  }
+  const props = PropertiesService.getScriptProperties(); props.deleteProperty('MAPA_ZONA'); props.deleteProperty('MAPA_FUERA');
   buscarCoordenadas();
 }
 function hojaCoords_() {
@@ -441,30 +494,33 @@ function clave_(s) {
 }
 /** Descarga las cumbres con nombre de una zona: [{lat, lon, ele, nombres}] */
 function picosEn_(z) {
-  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:120];` +
+  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:90];` +
             `node["natural"~"^(peak|volcano|hill)$"]["name"](${z.join(',')});out;`;
   return leerCsv_(pedirOverpass_(q));
 }
 function buscarFuera_(nombre) {
   const txt = normal_(nombre).replace(/[^a-z ]/g, '').trim(); if (txt.length < 4) return [];
-  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:60];` +
+  const q = `[out:csv(::lat,::lon,name,"name:eu","name:es","name:fr",alt_name,ele;false;"\\t")][timeout:40];` +
             `node["natural"~"^(peak|volcano)$"]["name"~"${txt}",i](27,-18,60,20);out;`;
   return leerCsv_(pedirOverpass_(q));
 }
+let servidoresMalos_ = {};   // los que han fallado en esta ejecución no se vuelven a probar
+/** Una sola petición (para no pasarse de tiempo): al primer servidor que no haya fallado en esta ejecución,
+    empezando por el que funcionó la última vez. Si falla, queda apartado y la siguiente petición usa otro. */
 function pedirOverpass_(q) {
-  let ultimo = '';
-  for (let vuelta = 0; vuelta < 2; vuelta++) {
-    for (const url of OVERPASS) {
-      try {
-        const r = UrlFetchApp.fetch(url, { method: 'post', payload: { data: q }, muteHttpExceptions: true });
-        const txt = r.getContentText('UTF-8');
-        if (r.getResponseCode() === 200 && !/^\s*</.test(txt)) return txt;   // una página de error empieza por «<»
-        ultimo = url + ' → ' + r.getResponseCode();
-      } catch (err) { ultimo = url + ' → ' + err.message; }
-    }
-    Utilities.sleep(10000);   // todos ocupados: esperar y dar otra vuelta
-  }
-  throw new Error('OpenStreetMap no responde (' + ultimo + ')');
+  const props = PropertiesService.getScriptProperties(), bueno = props.getProperty('MAPA_SERVIDOR');
+  const url = OVERPASS.slice().sort((a, b) => (b === bueno) - (a === bueno)).filter(u => !servidoresMalos_[u])[0];
+  if (!url) throw new Error('Ningún servidor de OpenStreetMap responde ahora. Se volverá a intentar.');
+  const t = Date.now(), host = url.split('/')[2];
+  let motivo;
+  try {
+    const r = UrlFetchApp.fetch(url, { method: 'post', payload: { data: q }, muteHttpExceptions: true });
+    const txt = r.getContentText('UTF-8');
+    if (r.getResponseCode() === 200 && !/^\s*</.test(txt)) { if (url !== bueno) props.setProperty('MAPA_SERVIDOR', url); return txt; }
+    motivo = 'respuesta ' + r.getResponseCode();
+  } catch (err) { motivo = err.message; }
+  servidoresMalos_[url] = true;
+  throw new Error(`${host} no ha respondido (${motivo}, ${Math.round((Date.now() - t) / 1000)} s)`);
 }
 function leerCsv_(txt) {
   return txt.split('\n').filter(Boolean).map(l => {
